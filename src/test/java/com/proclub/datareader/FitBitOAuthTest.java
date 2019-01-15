@@ -58,7 +58,7 @@ public class FitBitOAuthTest {
         System.out.println("Trading the Request Token for an Access Token...");
         final OAuth2AccessToken oauth2AccessToken = service.getAccessToken(code);
         System.out.println("Got the Access Token!");
-        System.out.println("(if your curious it looks like this: " + oauth2AccessToken
+        System.out.println("(if you're curious it looks like this: " + oauth2AccessToken
                 + ", 'rawResponse'='" + oauth2AccessToken.getRawResponse() + "')");
         System.out.println();
 

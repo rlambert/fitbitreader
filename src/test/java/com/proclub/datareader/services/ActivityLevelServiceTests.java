@@ -1,6 +1,7 @@
 package com.proclub.datareader.services;
 
 import com.proclub.datareader.dao.ActivityLevel;
+import junit.framework.TestCase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,7 +66,7 @@ public class ActivityLevelServiceTests {
 
         // see if we have 2 in our list
         List<ActivityLevel> actList = _service.findAll();
-        assertTrue(actList.size() == 2);
+        TestCase.assertEquals(2, actList.size());
 
         long count = _service.count();
         assertEquals(2, count);

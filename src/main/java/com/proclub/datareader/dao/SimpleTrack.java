@@ -1,56 +1,163 @@
 package com.proclub.datareader.dao;
 
+import com.proclub.datareader.model.sleep.Sleep;
+import com.proclub.datareader.model.sleep.SleepData;
+import com.proclub.datareader.model.steps.Steps;
+import com.proclub.datareader.model.steps.StepsData;
+import com.proclub.datareader.model.weight.Weight;
+import com.proclub.datareader.model.weight.WeightData;
 import lombok.Data;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 @Entity
 @Data
 public class SimpleTrack {
 
+    public enum SyncStatus
+    {
+        Null(-1),
+        New(0),
+        Updated(1),
+        Deleted(2),
+        DeletedInSync(3),
+        InSync(4);
+        
+        public short syncStatus;
+        
+        private SyncStatus(int status) {
+            this.syncStatus = (short) status;
+        }
+    }
+    
+    /**
+     * There are the default values for this class by type as defined by
+     * original application
+     */
+    public static class NullValue {
+
+        static final ZonedDateTime DateTimeUtc = LocalDateTime.of(1900, 9, 9, 9, 9, 9).atZone(ZoneId.of("UTC"));
+        static final int Int = -1;
+        static final byte Byte = (byte) 255;
+        static final UUID Guid = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        static final String String = "";
+        static final double Decimal = -1.0000;
+        static final int Enum = -1;
+    }
+
+    public enum TrackList
+    {
+        Null(-1),
+        FoodBreak(0),
+        FoodLunch(1),
+        FoodDinner(2),
+        FoodSnack(3),
+        HungerBreak(4),
+        HungerLunch(5),
+        HungerDinner(6),
+        HungerSnack(7),
+        PlateModel(8),
+        Cardio(9),
+        Strength(10),
+        Weight(11),
+        Steps(12),
+        Sleep(13),
+        Mood(14),
+        Water(15),
+        Supplement(16),
+        FoodMealTimes(17),
+        Workout2020(18);
+
+        private int trackItem;
+        private TrackList(int item) {
+            this.trackItem = item;
+        }
+    }
+    
+    public enum Entity {
+        NULL(-1),
+        WEIGHT(0),
+        STEPS(1),
+        SLEEP(2),
+        MOOD(3),
+        WATER(4),
+        SUPLEMENTS(5);
+
+        public int entityValue;
+
+        Entity (int eval) {
+            this.entityValue = eval;
+        }
+    }
+
+    public enum SourceSystem
+    {
+        NULL(-1),
+        WEBTRACKER(0),
+        IPHONE(1),
+        WINPHONE(2),
+        HEALTHVAULT(3),
+        GADGET(4),
+        PROCENTRAL(5),
+        ADMIN(6),
+        OTHER(7),
+        FITBIT(8),
+        NETPULSE(9),
+        GARMIN(10),
+        NIKE(11);
+
+        public int sourceSystem;
+        private SourceSystem(int src) {
+            this.sourceSystem = src;
+        }
+    }
+
     @Id
     @Column(name = "SimpleTrackGuid")
-    private UUID simpleTrackGuid;
+    private UUID simpleTrackGuid = NullValue.Guid;
 
     @Column(name = "fkUserGuid")
-    private UUID fkUserGuid;
+    private UUID fkUserGuid = NullValue.Guid;
 
     @Column(name = "fkProviderId")
-    private int fkProviderId;
+    private int fkProviderId = NullValue.Int;
 
     @Column(name = "SourceSystem")
-    private int sourceSystem;
+    private int sourceSystem = SourceSystem.NULL.sourceSystem;
 
     @Column(name = "ModifiedDateTime")
-    private Instant modifiedDateTime;
+    private int modifiedDateTime = (int) NullValue.DateTimeUtc.toEpochSecond();
 
     @Column(name = "TrackDateTime")
-    private Instant trackDateTime;
+    private int trackDateTime = (int) NullValue.DateTimeUtc.toEpochSecond();
 
     @Column(name = "EntityType")
-    private int entityType;
+    private int entityType = Entity.NULL.entityValue;
 
     @Column(name = "ValTinyInt")
-    private short valTinyInt;
+    private short valTinyInt = NullValue.Byte; // default
 
     @Column(name = "ValInt")
-    private short valInt;
+    private int valInt = NullValue.Int;    // default
 
     @Column(name = "ValDec")
-    private double valDec;
+    private double valDec = NullValue.Decimal;
 
     @Column(name = "ValStr")
-    private double valStr;
+    private String valStr = NullValue.String;
 
     @Column(name = "Sync")
-    private double sync;
+    private short sync = SyncStatus.Null.syncStatus;
 
     @Column(name = "ValInt2")
-    private short valInt2;
+    private int valInt2;
 
     @Column(name = "ValTime")
     private int valTime;
@@ -61,7 +168,7 @@ public class SimpleTrack {
     @Column(name = "DeviceReported")
     private byte deviceReported;
 
-    /*
+    /*  TABLE STRUCTURE
     SimpleTrackGuid uniqueidentifier NOT NULL PRIMARY KEY,
     fkUserGuid uniqueidentifier NOT NULL,
     fkProviderId int NOT NULL,
@@ -104,14 +211,14 @@ public class SimpleTrack {
      */
     public SimpleTrack(UUID simpleTrackGuid, UUID fkUserGuid, int fkProviderId, int sourceSystem,
                        Instant modifiedDateTime, Instant trackDateTime, int entityType, short valTinyInt,
-                       short valInt, double valDec, double valStr, double sync, short valInt2, int valTime,
+                       short valInt, double valDec, String valStr, short sync, short valInt2, int valTime,
                        int valTime2, byte deviceReported) {
         this.simpleTrackGuid = simpleTrackGuid;
         this.fkUserGuid = fkUserGuid;
         this.fkProviderId = fkProviderId;
         this.sourceSystem = sourceSystem;
-        this.modifiedDateTime = modifiedDateTime;
-        this.trackDateTime = trackDateTime;
+        this.modifiedDateTime = (int) modifiedDateTime.toEpochMilli()/1000;
+        this.trackDateTime = (int) trackDateTime.toEpochMilli()/1000;
         this.entityType = entityType;
         this.valTinyInt = valTinyInt;
         this.valInt = valInt;
@@ -123,4 +230,98 @@ public class SimpleTrack {
         this.valTime2 = valTime2;
         this.deviceReported = deviceReported;
     }
+
+    /**
+     * ctor for Sleep data
+     * @param sleepData - SleepData
+     */
+    public SimpleTrack (SleepData sleepData) {
+        this.entityType = Entity.SLEEP.entityValue;
+        this.simpleTrackGuid = UUID.randomUUID();
+        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+
+        if (sleepData.getSleep().size() > 0) {
+            Sleep sleep = sleepData.getSleep().get(0);
+            this.valInt = (int) sleep.getMinutesToFallAsleep();
+            this.valDec = (int) (sleep.getMinutesAsleep()/60);
+
+            // ProClub keeps time in seconds since Epoch
+            this.valTime = (int) (Instant.parse(sleep.getStartTime()).toEpochMilli()/1000);
+            this.valTime2 = (int) (Instant.parse(sleep.getEndTime()).toEpochMilli()/1000);
+        }
+        this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
+    }
+
+    /*
+        -- from client web app
+
+            private dtoSimpleTrackSteps LoadStepsDto(DataRow drSimple)
+        {
+            var objSteps = new dtoSimpleTrackSteps();
+            objSteps.AssignCommon(
+                guidNullFix(drSimple["SimpleTrackGuid"]),
+                int32NullFix(drSimple["fkProviderId"], NullValue.Int),
+                (enumSourceSystem)int32NullFix(drSimple["SourceSystem"], (int)enumSourceSystem.Null),
+                DateTimeFix(drSimple["TrackDateTime"], NullValue.DateTimeUtc),
+                DateTimeFix(drSimple["ModifiedDateTime"], NullValue.DateTimeUtc),
+                (enumSyncStatus)int32NullFix(drSimple["Sync"], (int)enumSyncStatus.Null),
+                false
+            );
+            objSteps.Steps = int32NullFix(drSimple["ValInt"], NullValue.Int); // steps specific
+            return objSteps;
+        }
+
+     */
+    /**
+     * ctor for Steps data
+     * @param stepsData - StepsData
+     */
+    public SimpleTrack (StepsData stepsData) {
+        this.entityType = Entity.STEPS.entityValue;
+        this.simpleTrackGuid = UUID.randomUUID();
+        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+
+        // we are assuming one day of data!
+        if (stepsData.getSteps().size() > 0) {
+            Steps steps = stepsData.getSteps().get(0);
+            String dtStr = steps.getDateTime();   // YYYY-MM-DD
+            //         String dtStr = "2018-12-11T00:00:00.00Z";
+            if (!dtStr.contains(":")) {
+                dtStr += "T00:00:00.00Z";
+            }
+            Instant dtTrack = Instant.parse(dtStr);
+            this.trackDateTime = (int) dtTrack.toEpochMilli()/1000;
+            this.valInt = (int) steps.getValue();
+        }
+        else {
+            throw new IllegalArgumentException("No step data present in stepsData.");
+        }
+    }
+
+    /*
+                var objWeight = new dtoSimpleTrackWeight();
+            objWeight.AssignCommon(
+                guidNullFix(drSimple["SimpleTrackGuid"]),
+                int32NullFix(drSimple["fkProviderId"], NullValue.Int),
+                (enumSourceSystem)int32NullFix(drSimple["SourceSystem"], (int)enumSourceSystem.Null),
+                DateTimeFix(drSimple["TrackDateTime"], NullValue.DateTimeUtc),
+                DateTimeFix(drSimple["ModifiedDateTime"], NullValue.DateTimeUtc),
+                (enumSyncStatus)int32NullFix(drSimple["Sync"], (int)enumSyncStatus.Null),
+                false
+            );
+            objWeight.Weight = decNullFix(drSimple["ValDec"], NullValue.Decimal); // weight specific
+     */
+    public SimpleTrack(WeightData wtdata) {
+        this.entityType = Entity.WEIGHT.entityValue;
+        this.simpleTrackGuid = UUID.randomUUID();
+        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+        if (wtdata.getWeight().size() == 0) {
+            throw new IllegalArgumentException("There is no weight data in the result.");
+        }
+        Weight wt = wtdata.getWeight().get(0);
+        this.valDec = wt.getWeight();
+        this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);
+    }
+
+
 }

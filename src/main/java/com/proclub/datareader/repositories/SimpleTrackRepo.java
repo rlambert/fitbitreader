@@ -27,7 +27,6 @@ public interface SimpleTrackRepo extends JpaRepository<SimpleTrack, UUID> {
      ValTime2 int NULL,
      DeviceReported bit NOT NULL
       */
-    List<SimpleTrack> findBySimpleTrackId(UUID id);
 
     List<SimpleTrack> findByFkUserGuid(UUID uid);
 
