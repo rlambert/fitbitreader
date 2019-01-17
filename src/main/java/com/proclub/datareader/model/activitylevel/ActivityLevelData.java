@@ -1,5 +1,5 @@
 
-package com.proclub.datareader.model.sleep;
+package com.proclub.datareader.model.activitylevel;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.proclub.datareader.model.FitBitApiData;
@@ -9,12 +9,11 @@ import java.util.List;
 
 @Data
 @SuppressWarnings("unused")
-public class SleepData implements FitBitApiData {
+public class ActivityLevelData implements FitBitApiData {
 
-    @JsonProperty("sleep")
-    private List<Sleep> sleep;
-
-    @JsonProperty("summary")
+    @JsonProperty("activities")
+    private List<Activity> activities;
+    private Goals goals;
     private Summary summary;
 
 }

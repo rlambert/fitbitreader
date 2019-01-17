@@ -85,5 +85,7 @@ public class FitBitOAuthTest {
 
         System.out.println();
 
+        service.refreshAccessToken(accessToken.getRefreshToken());
+
     }
 }

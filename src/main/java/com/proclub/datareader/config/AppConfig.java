@@ -18,11 +18,18 @@ public class AppConfig {
      */
     private static final Logger _logger = LoggerFactory.getLogger(AppConfig.class.getName());
 
+    private String fitbitClientId;
+    private String fitbitCodeAuth;
+    private String fitbitClientSecret;
+    private String fitbitScope;
+    private String fitbitCallbackUrl;
     private String fitbitAuthUrl;
     private String fitbitTokenUrl;
-    private String fitbitSleepDataUrl;
+    private String fitbitSleepUrl;
     private String fitbitWeightUrl;
     private String fitbitStepsUrl;
     private String fitbitActivityUrl;
+
+    private boolean unittest;
 
 }

@@ -1,5 +1,6 @@
 package com.proclub.datareader.dao;
 
+import com.proclub.datareader.model.activitylevel.ActivityLevelData;
 import lombok.Data;
 
 import javax.persistence.Column;
@@ -39,7 +40,7 @@ public class ActivityLevel {
     private int veryActiveMinutes;
 
     @Column(name = "DeviceReported")
-    private boolean DeviceReported;
+    private boolean deviceReported;
 
     /**
      * CREATE TABLE [dbo].[ActivityLevel](
@@ -74,6 +75,23 @@ public class ActivityLevel {
         this.fairlyActiveMinutes = fairlyActiveMinutes;
         this.lightlyActiveMinutes = lightlyActiveMinutes;
         this.veryActiveMinutes = veryActiveMinutes;
-        DeviceReported = deviceReported;
+        this.deviceReported = deviceReported;
+    }
+
+    /**
+     * This constructor takes the raw ActivityLevelData response from FitBit
+     * and extracts what ProClub wants to keep from it into this DTO class.
+     * @param fkUserGuid - UUID
+     * @param trackDateTime - Instant
+     * @param actData - Instant
+     */
+    public ActivityLevel (UUID fkUserGuid, Instant trackDateTime, ActivityLevelData actData) {
+        this.fkUserGuid = fkUserGuid;
+        this.modifiedDateTime = Instant.now();
+        this.trackDateTime = trackDateTime;
+        this.fairlyActiveMinutes = (int) actData.getSummary().getFairlyActiveMinutes();
+        this.lightlyActiveMinutes = (int) actData.getSummary().getLightlyActiveMinutes();
+        this.veryActiveMinutes = (int) actData.getSummary().getVeryActiveMinutes();
+        this.deviceReported = true;
     }
 }
