@@ -30,7 +30,7 @@ import java.util.Properties;
 @RestController
 @Component
 @CrossOrigin
-@RequestMapping("${app.apiRestBase}")
+@RequestMapping("${app.apiRestBase}/version")
 public class VersionController extends ApiBase {
 
     private static Logger _logger = LoggerFactory.getLogger(VersionController.class);
@@ -85,7 +85,7 @@ public class VersionController extends ApiBase {
         return serialize(props);
     }
 
-    @GetMapping(value = {"/version"}, produces = "application/json")
+    @GetMapping(value = {"","/"}, produces = "application/json")
     public String version1() throws IOException {
         return getVersion();
     }

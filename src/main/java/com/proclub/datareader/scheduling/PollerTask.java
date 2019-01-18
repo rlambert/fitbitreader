@@ -37,7 +37,7 @@ public class PollerTask {
      * hourly task will fire at 5 minutes after the hour
      */
     // @Scheduled(cron = "[Seconds] [Minutes] [Hours] [Day of month] [Month] [Day of week] [Year]")
-    @Scheduled(cron = "0 21 * * * *")
+    @Scheduled(cron = "${app.pollcron}")
     public void dataSourcePoller() {
         if (!_config.isUnittest()) {
             _logger.info("*** Poller Task Started ****");

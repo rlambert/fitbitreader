@@ -29,6 +29,7 @@ public class AppConfig {
     private String fitbitWeightUrl;
     private String fitbitStepsUrl;
     private String fitbitActivityUrl;
+    private String pollCron;
 
     private boolean unittest;
 
