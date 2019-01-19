@@ -1,7 +1,6 @@
 package com.proclub.datareader.services;
 
 import com.proclub.datareader.dao.User;
-import com.proclub.datareader.services.UserService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;

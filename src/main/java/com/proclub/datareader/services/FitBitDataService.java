@@ -29,13 +29,24 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
+import java.util.Optional;
 import java.util.TimeZone;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 @Service
 public class FitBitDataService {
 
+    // ----------------------------- static class data
+
     private static Logger _logger = LoggerFactory.getLogger(FitBitDataService.class);
+
+    // This is effectively a cache of user credentials
+    private static ConcurrentHashMap<UUID, OAuthCredentials> _authMap = new ConcurrentHashMap<>();
+
+
+    // ----------------------------- instance data
 
     //get current TimeZone using getTimeZone method of Calendar class
     private static TimeZone _timeZone = Calendar.getInstance().getTimeZone();
@@ -45,6 +56,9 @@ public class FitBitDataService {
 
     private OkHttpClient _client = new OkHttpClient();
     private ObjectMapper _mapper = new ObjectMapper();
+
+
+
 
     /**
      * ctor
@@ -59,6 +73,24 @@ public class FitBitDataService {
                 .scope(_config.getFitbitScope())
                 .callback(_config.getFitbitCallbackUrl())
                 .build(FitbitApi20.instance());
+    }
+
+    /**
+     * get a user's OAuth creds from the cache
+     * @param userGuid - UUID
+     * @return Optional<OAuthCredentials>
+     */
+    public Optional<OAuthCredentials> getOAuthCredentials(UUID userGuid) {
+        if (_authMap.containsKey(userGuid)) {
+            return Optional.of(_authMap.get(userGuid));
+        }
+        else {
+            return Optional.empty();
+        }
+    }
+
+    public void putOAuthCredentials(UUID userGuid, OAuthCredentials creds) {
+        _authMap.put(userGuid, creds);
     }
 
     /**

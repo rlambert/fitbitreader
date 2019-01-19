@@ -18,6 +18,7 @@ public class AppConfig {
      */
     private static final Logger _logger = LoggerFactory.getLogger(AppConfig.class.getName());
 
+    private String apiRestBase;
     private String fitbitClientId;
     private String fitbitCodeAuth;
     private String fitbitClientSecret;

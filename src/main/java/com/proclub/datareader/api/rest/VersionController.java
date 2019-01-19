@@ -30,7 +30,7 @@ import java.util.Properties;
 @RestController
 @Component
 @CrossOrigin
-@RequestMapping("${app.apiRestBase}/version")
+@RequestMapping("/version")
 public class VersionController extends ApiBase {
 
     private static Logger _logger = LoggerFactory.getLogger(VersionController.class);

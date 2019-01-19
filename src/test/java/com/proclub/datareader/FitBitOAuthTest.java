@@ -10,8 +10,6 @@ import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import org.junit.Test;
 
-import java.util.Scanner;
-
 public class FitBitOAuthTest {
 
     private static final String NETWORK_NAME = "Fitbit";
@@ -35,7 +33,6 @@ public class FitBitOAuthTest {
                 .callback("https://proclub-fitbit-dev.azurewebsites.net/")
                 .state("some_params")
                 .build(FitbitApi20.instance());
-        final Scanner in = new Scanner(System.in);
 
         System.out.println("=== " + NETWORK_NAME + "'s OAuth Workflow ===");
         System.out.println();
