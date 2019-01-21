@@ -31,7 +31,7 @@ public class AppConfig {
     private String fitbitStepsUrl;
     private String fitbitActivityUrl;
     private String pollCron;
-
+    private boolean fitbitSendAuthEmail;
     private boolean unittest;
 
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.DataCenterConfig;
 import com.proclub.datareader.services.DataCenterConfigService;
+import com.proclub.datareader.services.FitBitDataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,8 @@ public class PollerTask {
 
     private AppConfig _config;
     private DataCenterConfigService _dcService;
+    private FitBitDataService _fitBitService;
+
 
     private ObjectMapper _mapper = new ObjectMapper();
 
@@ -28,9 +31,10 @@ public class PollerTask {
      * @param config - AppConfig
      */
     @Autowired
-    public PollerTask(AppConfig config, DataCenterConfigService dcService) {
+    public PollerTask(AppConfig config, DataCenterConfigService dcService, FitBitDataService fbService) {
         _config = config;
         _dcService = dcService;
+        _fitBitService = fbService;
     }
 
     /**
@@ -47,7 +51,7 @@ public class PollerTask {
             List<DataCenterConfig> subs = _dcService.findAll();
 
             for(DataCenterConfig dc : subs) {
-                //dc.
+                //_fitBitService.processAll(dc);
             }
 
             _logger.info(String.format("Poll complete: %s total subs processed.", subs.size()));

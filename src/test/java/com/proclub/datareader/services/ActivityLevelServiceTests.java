@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -34,8 +34,8 @@ public class ActivityLevelServiceTests {
     @Test
     public void testCrud() {
 
-        Instant trackDt = Instant.now().minus(1, ChronoUnit.DAYS);
-        Instant modifiedDt = Instant.now();
+        LocalDateTime trackDt = LocalDateTime.now().minus(1, ChronoUnit.DAYS);
+        LocalDateTime modifiedDt = LocalDateTime.now();
 
         /*
             public ActivityLevel(UUID fkUserGuid, Instant modifiedDateTime, Instant trackDateTime, int fairlyActiveMinutes,

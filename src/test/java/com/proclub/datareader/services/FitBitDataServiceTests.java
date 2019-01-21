@@ -12,7 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 import static org.hibernate.validator.internal.util.Contracts.assertNotNull;
 import static org.junit.Assert.assertEquals;
@@ -35,7 +35,7 @@ public class FitBitDataServiceTests {
 
     @Test
     public void testSteps() throws Exception {
-        final Instant dt = Instant.parse("2019-01-10T00:00:00Z");
+        final LocalDateTime dt = LocalDateTime.parse("2019-01-10T00:00:00Z");
         ObjectMapper mapper = new ObjectMapper();
         String json = StringUtils.readResource(this, "credentials.json");
         OAuthCredentials creds = mapper.readValue(json, OAuthCredentials.class);

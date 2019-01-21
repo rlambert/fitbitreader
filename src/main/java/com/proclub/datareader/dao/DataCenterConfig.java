@@ -1,8 +1,12 @@
 package com.proclub.datareader.dao;
 
+import com.proclub.datareader.model.security.OAuthCredentials;
 import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.persistence.*;
+import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
@@ -12,6 +16,8 @@ import java.util.UUID;
 @Table(name="DataCenterConfig")
 @Data
 public class DataCenterConfig {
+
+    private static Logger _logger = LoggerFactory.getLogger(DataCenterConfig.class);
 
     @Data
     public static class Pkey implements Serializable {
@@ -53,6 +59,23 @@ public class DataCenterConfig {
 
     @Column(name="Modified")
     private Instant modified;
+
+    @Transient
+    private OAuthCredentials oAuthCredentials;
+
+    /**
+     * getter will create an OAuthCredentials instance from
+     * the database column data (JSON) when called.
+     * @return OAuthCredentials
+     * @throws IOException
+    */
+
+    public OAuthCredentials getOAuth() throws IOException {
+        if (oAuthCredentials == null) {
+            oAuthCredentials = OAuthCredentials.create(credentials);
+        }
+        return oAuthCredentials;
+    }
 
     /*
         fkUserGuid uniqueidentifier NOT NULL,

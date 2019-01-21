@@ -7,6 +7,10 @@ import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.model.OAuth2AccessToken;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.proclub.datareader.config.AppConfig;
+import com.proclub.datareader.dao.ActivityLevel;
+import com.proclub.datareader.dao.DataCenterConfig;
+import com.proclub.datareader.dao.SimpleTrack;
+import com.proclub.datareader.dao.User;
 import com.proclub.datareader.model.FitBitApiData;
 import com.proclub.datareader.model.activitylevel.ActivityLevelData;
 import com.proclub.datareader.model.security.OAuthCredentials;
@@ -25,7 +29,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
@@ -36,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 @Service
+@SuppressWarnings("unused")
 public class FitBitDataService {
 
     // ----------------------------- static class data
@@ -49,31 +53,50 @@ public class FitBitDataService {
     // ----------------------------- instance data
 
     //get current TimeZone using getTimeZone method of Calendar class
+    // TODO: Update LocalDateTime instances with server's zone
     private static TimeZone _timeZone = Calendar.getInstance().getTimeZone();
 
-    private AppConfig _config;
-    private final OAuth20Service _oauthService;
+    private AppConfig _config;                          // application config
+    private UserService _userService;                   // our service to fetch user data
+    private DataCenterConfigService _dcService;         // DataCenterConfig service
+    private ActivityLevelService _activityLevelService; // get/put ActivityLevel
+    private SimpleTrackService _trackService;           // get/put SimpleTrack data
+    private final OAuth20Service _oauthService;         // this is a scribejava library instance
 
-    private OkHttpClient _client = new OkHttpClient();
-    private ObjectMapper _mapper = new ObjectMapper();
+    private OkHttpClient _client = new OkHttpClient();  // for accessing web API
+    private ObjectMapper _mapper = new ObjectMapper();  // for deserializing JSON
 
 
-
+    // ----------------------------- constructor
 
     /**
      * ctor
      *
      * @param config - AppConfig
+     * @param userService - UserService
+     * @param dcService - DataCenterConfigService
+     * @param activityLevelService - ActivityLevelService
+     * @param trackService - SimpleTrackService
      */
     @Autowired
-    public FitBitDataService(AppConfig config) {
+    public FitBitDataService(AppConfig config, UserService userService, DataCenterConfigService dcService,
+                             ActivityLevelService activityLevelService, SimpleTrackService trackService) {
         _config = config;
+        _userService = userService;
+        _dcService = dcService;
+        _activityLevelService = activityLevelService;
+        _trackService = trackService;
+
+        // we need the config instance to build the library object,
+        // so we instantiate the service object here
         _oauthService = new ServiceBuilder(_config.getFitbitClientId())
                 .apiSecret(_config.getFitbitClientSecret())
                 .scope(_config.getFitbitScope())
                 .callback(_config.getFitbitCallbackUrl())
                 .build(FitbitApi20.instance());
     }
+
+    // ----------------------------- methods
 
     /**
      * get a user's OAuth creds from the cache
@@ -89,15 +112,28 @@ public class FitBitDataService {
         }
     }
 
+    /**
+     * adds or updates an OAuthCredentials object for a user.
+     * @param userGuid - UUID
+     * @param creds - OAuthCredentials
+     */
     public void putOAuthCredentials(UUID userGuid, OAuthCredentials creds) {
         _authMap.put(userGuid, creds);
+    }
+
+    /**
+     * remove an item from the cache.
+     * @param userGuid - UUID
+     */
+    public void deleteOAuthCredentials(UUID userGuid) {
+        _authMap.remove(userGuid);
     }
 
     /**
      * private helper method to extract JSON string from responses
      * @param response - Response
      * @return String - JSON result
-     * @throws IOException
+     * @throws IOException - on I/O error
      */
     private String processResponseBody(Response response) throws IOException {
         String json = "";
@@ -172,14 +208,14 @@ public class FitBitDataService {
     /**
      * helper method to build an API request
      * @param oauth
-     * @param dt
+     * @param dt - LocalDateTime
      * @return
      */
-    private FitBitApiData makeApiRequest(Class dataClass, String baseUrl, OAuthCredentials oauth, Instant dt)
+    private FitBitApiData makeApiRequest(Class dataClass, String baseUrl, OAuthCredentials oauth, LocalDateTime dt)
             throws IOException, ExecutionException, InterruptedException {
 
-        LocalDateTime locDt = LocalDateTime.ofInstant(dt, _timeZone.toZoneId());
-        String dtStr = locDt.format(DateTimeFormatter.ISO_DATE);  // YYYY-MM-DD
+        //LocalDateTime locDt = LocalDateTime.ofInstant(dt, _timeZone.toZoneId());
+        String dtStr = dt.format(DateTimeFormatter.ISO_DATE);  // YYYY-MM-DD
         String url = baseUrl.replace("${date}", dtStr);
         Request req = new Request.Builder()
                 .url(url)
@@ -223,7 +259,7 @@ public class FitBitDataService {
      * @return - SleepData
      * @throws IOException
      */
-    public ActivityLevelData getActivityLevels(OAuthCredentials oauth, Instant dt)
+    public ActivityLevelData getActivityLevels(OAuthCredentials oauth, LocalDateTime dt)
                     throws IOException, ExecutionException, InterruptedException {
         // makeApiRequest(Class dataClass, String baseUrl, OAuthCredentials oauth, Instant dt)
         String baseUrl = _config.getFitbitActivityUrl();
@@ -238,7 +274,7 @@ public class FitBitDataService {
      * @return - SleepData
      * @throws IOException
      */
-    public WeightData getWeight(OAuthCredentials oauth, Instant dt)
+    public WeightData getWeight(OAuthCredentials oauth, LocalDateTime dt)
             throws IOException, ExecutionException, InterruptedException {
         String baseUrl = _config.getFitbitWeightUrl();
         return (WeightData) makeApiRequest(WeightData.class, baseUrl, oauth, dt);
@@ -252,7 +288,7 @@ public class FitBitDataService {
      * @return - SleepData
      * @throws IOException
      */
-    public SleepData getSleep(OAuthCredentials oauth, Instant dt)
+    public SleepData getSleep(OAuthCredentials oauth, LocalDateTime dt)
             throws IOException, ExecutionException, InterruptedException {
         String baseUrl = _config.getFitbitSleepUrl();
         return (SleepData) makeApiRequest(SleepData.class, baseUrl, oauth, dt);
@@ -265,7 +301,7 @@ public class FitBitDataService {
      * @return - StepsData
      * @throws IOException
      */
-    public StepsData getSteps(OAuthCredentials oauth, Instant dt)
+    public StepsData getSteps(OAuthCredentials oauth, LocalDateTime dt)
                 throws IOException, ExecutionException, InterruptedException {
         String baseUrl = _config.getFitbitStepsUrl();
         return (StepsData) makeApiRequest(StepsData.class, baseUrl, oauth, dt);
@@ -296,6 +332,140 @@ public class FitBitDataService {
             }
         });
         */
+    }
+
+    /**
+     * helper method to notify users via email if they need to reauthorize
+     * the application
+     * @param dc - DataCenterConfig
+     */
+    private void notifyUser(DataCenterConfig dc) {
+        // handle an auth error: is authorization email enabled?
+        if (_config.isFitbitSendAuthEmail()) {
+            // yes, so see if we can find the user's email
+
+            _logger.info(StringUtils.formatMessage(String.format("Attempting auth email for user '%s'", dc.getFkUserGuid())));
+            Optional<User> opt = _userService.findById(dc.getFkUserGuid());
+            if (opt.isPresent()) {
+                User user = opt.get();
+                if (!StringUtils.isNullOrEmpty(user.getEmail())) {
+                    // TODO: Send FitBit Auth Email
+
+                    _logger.info(StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", user.getEmail(), dc.getFkUserGuid())));
+                }
+            }
+            else {
+                _logger.error(String.format("User '%s' not found in User table.", dc.getFkUserGuid().toString()));
+            }
+        }
+    }
+
+
+    /**
+     * entry point for grabbing all available FitBit data for
+     * a given user
+     * @param dc - DataCenterConfig entry for use
+     * @throws IOException
+     */
+    public void processAll(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
+        OAuthCredentials creds;
+
+        // do we already have the credentials in the cache?
+        if (!_authMap.containsKey(dc.getFkUserGuid())) {
+
+            // no, so see if we can create them
+            if (StringUtils.isNullOrEmpty(dc.getCredentials())) {
+
+                // can't create them... fatal error for this user
+                String msg = String.format("No OAuth credentials stored in database for user ID: %s", dc.getFkUserGuid().toString());
+                _logger.error(StringUtils.formatMessage(msg));
+
+                // send notification email if enabled
+                notifyUser(dc);
+            }
+            else {
+                // we have OAuth credentials
+                creds = OAuthCredentials.create(dc.getCredentials());
+                if (creds.isExpired()) {
+                    // need to refresh
+                    try {
+                        // if we can refresh token...
+                        creds = refreshToken(creds);
+                        if (creds != null) {
+                            // ...then we need to update the database as well
+                            dc.setCredentials(creds.toJson());
+                            _dcService.updateDataCenterConfig(dc);
+                        }
+                    }
+                    catch(IOException | ExecutionException | InterruptedException ex) {
+                        String msg = String.format("Could not refresh OAuth2 token for user '%s'", dc.getFkUserGuid());
+                        _logger.error(msg, ex);
+                        // send notification email if enabled
+                        notifyUser(dc);
+                    }
+                }
+
+                // we've got credentials, so let's fetch us some ActivityLevel data
+                try {
+                    ActivityLevelData aldata = getActivityLevels(creds, dtNow);
+                    ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtNow, aldata);
+                    _activityLevelService.createActivityLevel(activityLevel);
+                }
+                catch(InterruptedException | ExecutionException ex) {
+                    _logger.error(StringUtils.formatError(String.format("Error saving ActivityLevelData for user '%s'", dc.getFkUserGuid()), ex));
+                }
+
+                // now fetch and save Sleep data
+                try {
+                    SleepData sleepData = getSleep(creds, dtNow);
+                    if (sleepData.getSleep().size() > 0) {
+                        SimpleTrack sleepTrack = new SimpleTrack(sleepData);
+                        _trackService.createSimpleTrack(sleepTrack);
+                    }
+                    else {
+                        _logger.info(StringUtils.formatMessage(String.format("No sleep data for user '%s' at this time.", dc.getFkUserGuid())));
+                    }
+                }
+                catch(InterruptedException | ExecutionException ex) {
+                    _logger.error(StringUtils.formatError(String.format("Error saving Sleep data for user '%s'", dc.getFkUserGuid()), ex));
+                }
+
+                // fetch and save Steps data
+                try {
+                    StepsData stepsData = getSteps(creds, dtNow);
+                    if (stepsData.getSteps().size() > 0) {
+                        SimpleTrack sleepTrack = new SimpleTrack(stepsData);
+                        _trackService.createSimpleTrack(sleepTrack);
+                    }
+                    else {
+                        _logger.info(StringUtils.formatMessage(String.format("No Steps data for user '%s' at this time.", dc.getFkUserGuid())));
+                    }
+                }
+                catch(InterruptedException | ExecutionException ex) {
+                    _logger.error(StringUtils.formatError(String.format("Error saving Steps data for user '%s'", dc.getFkUserGuid()), ex));
+                }
+
+
+                // fetch and save Weight data
+                try {
+                    WeightData wtData = getWeight(creds, dtNow);
+                    if (wtData.getWeight().size() > 0) {
+                        SimpleTrack wtTrack = new SimpleTrack(wtData);
+                        _trackService.createSimpleTrack(wtTrack);
+                    }
+                    else {
+                        _logger.info(StringUtils.formatMessage(String.format("No Weight data for user '%s' at this time.", dc.getFkUserGuid())));
+                    }
+                }
+                catch(InterruptedException | ExecutionException ex) {
+                    _logger.error(StringUtils.formatError(String.format("Error saving Weight data for user '%s'", dc.getFkUserGuid()), ex));
+                }
+
+            }
+        }
+        else {
+            creds = _authMap.get(dc.getFkUserGuid());
+        }
 
     }
 }

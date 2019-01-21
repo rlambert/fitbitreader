@@ -7,7 +7,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static javax.persistence.GenerationType.IDENTITY;
@@ -25,10 +25,10 @@ public class ActivityLevel {
     private UUID fkUserGuid;
 
     @Column(name = "ModifiedDateTime")
-    private Instant modifiedDateTime;
+    private LocalDateTime modifiedDateTime;
 
     @Column(name = "TrackDateTime")
-    private Instant trackDateTime;
+    private LocalDateTime trackDateTime;
 
     @Column(name = "FairlyActiveMinutes")
     private int fairlyActiveMinutes;
@@ -67,7 +67,7 @@ public class ActivityLevel {
      * @param veryActiveMinutes
      * @param deviceReported
      */
-    public ActivityLevel(UUID fkUserGuid, Instant modifiedDateTime, Instant trackDateTime, int fairlyActiveMinutes,
+    public ActivityLevel(UUID fkUserGuid, LocalDateTime modifiedDateTime, LocalDateTime trackDateTime, int fairlyActiveMinutes,
                          int lightlyActiveMinutes, int veryActiveMinutes, boolean deviceReported) {
         this.fkUserGuid = fkUserGuid;
         this.modifiedDateTime = modifiedDateTime;
@@ -85,9 +85,9 @@ public class ActivityLevel {
      * @param trackDateTime - Instant
      * @param actData - Instant
      */
-    public ActivityLevel (UUID fkUserGuid, Instant trackDateTime, ActivityLevelData actData) {
+    public ActivityLevel (UUID fkUserGuid, LocalDateTime trackDateTime, ActivityLevelData actData) {
         this.fkUserGuid = fkUserGuid;
-        this.modifiedDateTime = Instant.now();
+        this.modifiedDateTime = LocalDateTime.now();
         this.trackDateTime = trackDateTime;
         this.fairlyActiveMinutes = (int) actData.getSummary().getFairlyActiveMinutes();
         this.lightlyActiveMinutes = (int) actData.getSummary().getLightlyActiveMinutes();

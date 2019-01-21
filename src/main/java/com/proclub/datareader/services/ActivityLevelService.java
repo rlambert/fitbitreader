@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,7 +51,7 @@ public class ActivityLevelService {
         return _repo.findAll();
     }
 
-    public List<ActivityLevel> findAllByModifiedDateTimeBetween(Instant dtStart, Instant dtEnd) {
+    public List<ActivityLevel> findAllByModifiedDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findAllByModifiedDateTimeBetween(dtStart, dtEnd);
     }
 
@@ -59,7 +59,7 @@ public class ActivityLevelService {
         return _repo.findAll(sort);
     }
 
-    public List<ActivityLevel> findByTrackDate(Instant dtStart, Instant dtEnd) {
+    public List<ActivityLevel> findByTrackDate(LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findAllByTrackDateTimeBetween(dtStart, dtEnd);
     }
 

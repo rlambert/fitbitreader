@@ -3,7 +3,7 @@ package com.proclub.datareader.repositories;
 import com.proclub.datareader.dao.ActivityLevel;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,11 +24,11 @@ public interface ActivityLevelRepo extends JpaRepository<ActivityLevel, Long> {
 
     List<ActivityLevel> findByFkUserGuid(UUID uid);
 
-    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeAfter(UUID uid, Instant dtStart);
+    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeAfter(UUID uid, LocalDateTime dtStart);
 
-    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeBetween(UUID uid, Instant dtStart, Instant dtEnd);
+    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeBetween(UUID uid, LocalDateTime dtStart, LocalDateTime dtEnd);
 
-    List<ActivityLevel> findAllByTrackDateTimeBetween(Instant dtStart, Instant dtEnd);
+    List<ActivityLevel> findAllByTrackDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
 
-    List<ActivityLevel> findAllByModifiedDateTimeBetween(Instant dtStart, Instant dtEnd);
+    List<ActivityLevel> findAllByModifiedDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
 }
