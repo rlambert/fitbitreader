@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,7 +52,7 @@ public class SimpleTrackService {
         return _repo.findAll();
     }
 
-    public List<SimpleTrack> findAllByModifiedDateTimeBetween(Instant dtStart, Instant dtEnd) {
+    public List<SimpleTrack> findAllByModifiedDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findAllByModifiedDateTimeBetween(dtStart, dtEnd);
     }
 
@@ -60,8 +60,16 @@ public class SimpleTrackService {
         return _repo.findAll(sort);
     }
 
-    public List<SimpleTrack> findByTrackDate(Instant dtStart, Instant dtEnd) {
+    public List<SimpleTrack> findByTrackDate(LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findAllByTrackDateTimeBetween(dtStart, dtEnd);
+    }
+
+    public List<SimpleTrack> findByUserTrackDateEntity(UUID userId, LocalDateTime dtStart,
+                                                       SimpleTrack.Entity etype, SimpleTrack.SyncStatus status) {
+        // we get to assume FitBit as the source system for this app
+        short src = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
+        return _repo.findByTrackDateTimeAndFkUserGuidAndSourceSystemAndEntityTypeAndSync(dtStart, userId, src,
+                                                                                etype.entityValue, status.syncStatus);
     }
 
 }

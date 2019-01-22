@@ -21,6 +21,52 @@ import java.util.UUID;
 @Data
 public class SimpleTrack {
 
+    public enum PartnerStatus
+    {
+        /*
+         * This is the data in the SimpleTrack.Status column
+         *
+         * relationship between the user and the partner
+         * the state will change as they sign-in, experience data fetch issues or opt-out of the partner
+         */
+
+        Null (-1),
+        SignUp (0),     // new user for this partner
+        Active (1),     // have successfully authed
+        AuthErr (2),    // auth was lost, user must re-auth
+        RefreshErr (3), // partner did not respond or threw error during transmission
+        DataErr(4),     // partner sent invalid tracking data (failed LSO validation)
+        OptOut (5);     // user has opted out of further automatic refreshes but can still view past data
+
+        public short status;
+
+        private PartnerStatus(int status) {
+            this.status = (short) status;
+        }
+    }
+
+    public enum DataStatus
+    {
+        /*
+         * This is the SimpleTrack.DataStatus column
+         *
+         * used to control any running processes for a user for the same partner
+         * ensures no two web pages or processes are running on the same user at the same time
+         */
+
+        Null(-1),
+        New(0),         // ready for next data operation
+        Update(1),      // in the middle of the auth process
+        Refresh(2);      // in the middle of the data refresh process
+
+        public short status;
+
+        private DataStatus(int status) {
+            this.status = (short) status;
+        }
+
+    }
+
     public enum SyncStatus
     {
         Null(-1),
@@ -82,39 +128,39 @@ public class SimpleTrack {
     }
     
     public enum Entity {
-        NULL(-1),
-        WEIGHT(0),
-        STEPS(1),
-        SLEEP(2),
-        MOOD(3),
-        WATER(4),
-        SUPLEMENTS(5);
+        NULL((short) -1),
+        WEIGHT((short) 0),
+        STEPS((short) 1),
+        SLEEP((short) 2),
+        MOOD((short) 3),
+        WATER((short) 4),
+        SUPLEMENTS((short) 5);
 
-        public int entityValue;
+        public short entityValue;
 
-        Entity (int eval) {
+        Entity (short eval) {
             this.entityValue = eval;
         }
     }
 
     public enum SourceSystem
     {
-        NULL(-1),
-        WEBTRACKER(0),
-        IPHONE(1),
-        WINPHONE(2),
-        HEALTHVAULT(3),
-        GADGET(4),
-        PROCENTRAL(5),
-        ADMIN(6),
-        OTHER(7),
-        FITBIT(8),
-        NETPULSE(9),
-        GARMIN(10),
-        NIKE(11);
+        NULL((short) -1),
+        WEBTRACKER((short) 0),
+        IPHONE((short) 1),
+        WINPHONE((short) 2),
+        HEALTHVAULT((short) 3),
+        GADGET((short) 4),
+        PROCENTRAL((short) 5),
+        ADMIN((short) 6),
+        OTHER((short) 7),
+        FITBIT((short) 8),
+        NETPULSE((short) 9),
+        GARMIN((short) 10),
+        NIKE((short) 11);
 
-        public int sourceSystem;
-        private SourceSystem(int src) {
+        public short sourceSystem;
+        private SourceSystem(short src) {
             this.sourceSystem = src;
         }
     }
@@ -139,7 +185,7 @@ public class SimpleTrack {
     private int trackDateTime = (int) NullValue.DateTimeUtc.toEpochSecond();
 
     @Column(name = "EntityType")
-    private int entityType = Entity.NULL.entityValue;
+    private short entityType = Entity.NULL.entityValue;
 
     @Column(name = "ValTinyInt")
     private short valTinyInt = NullValue.Byte; // default
@@ -210,7 +256,7 @@ public class SimpleTrack {
      * @param deviceReported
      */
     public SimpleTrack(UUID simpleTrackGuid, UUID fkUserGuid, int fkProviderId, int sourceSystem,
-                       Instant modifiedDateTime, Instant trackDateTime, int entityType, short valTinyInt,
+                       Instant modifiedDateTime, Instant trackDateTime, short entityType, short valTinyInt,
                        short valInt, double valDec, String valStr, short sync, short valInt2, int valTime,
                        int valTime2, byte deviceReported) {
         this.simpleTrackGuid = simpleTrackGuid;
@@ -252,26 +298,6 @@ public class SimpleTrack {
         this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
     }
 
-    /*
-        -- from client web app
-
-            private dtoSimpleTrackSteps LoadStepsDto(DataRow drSimple)
-        {
-            var objSteps = new dtoSimpleTrackSteps();
-            objSteps.AssignCommon(
-                guidNullFix(drSimple["SimpleTrackGuid"]),
-                int32NullFix(drSimple["fkProviderId"], NullValue.Int),
-                (enumSourceSystem)int32NullFix(drSimple["SourceSystem"], (int)enumSourceSystem.Null),
-                DateTimeFix(drSimple["TrackDateTime"], NullValue.DateTimeUtc),
-                DateTimeFix(drSimple["ModifiedDateTime"], NullValue.DateTimeUtc),
-                (enumSyncStatus)int32NullFix(drSimple["Sync"], (int)enumSyncStatus.Null),
-                false
-            );
-            objSteps.Steps = int32NullFix(drSimple["ValInt"], NullValue.Int); // steps specific
-            return objSteps;
-        }
-
-     */
     /**
      * ctor for Steps data
      * @param stepsData - StepsData
@@ -298,18 +324,9 @@ public class SimpleTrack {
         }
     }
 
-    /*
-                var objWeight = new dtoSimpleTrackWeight();
-            objWeight.AssignCommon(
-                guidNullFix(drSimple["SimpleTrackGuid"]),
-                int32NullFix(drSimple["fkProviderId"], NullValue.Int),
-                (enumSourceSystem)int32NullFix(drSimple["SourceSystem"], (int)enumSourceSystem.Null),
-                DateTimeFix(drSimple["TrackDateTime"], NullValue.DateTimeUtc),
-                DateTimeFix(drSimple["ModifiedDateTime"], NullValue.DateTimeUtc),
-                (enumSyncStatus)int32NullFix(drSimple["Sync"], (int)enumSyncStatus.Null),
-                false
-            );
-            objWeight.Weight = decNullFix(drSimple["ValDec"], NullValue.Decimal); // weight specific
+    /**
+     * constructor for weight data
+     * @param wtdata - WeightData
      */
     public SimpleTrack(WeightData wtdata) {
         this.entityType = Entity.WEIGHT.entityValue;

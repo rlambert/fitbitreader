@@ -33,5 +33,7 @@ public class AppConfig {
     private String pollCron;
     private boolean fitbitSendAuthEmail;
     private boolean unittest;
+    private String adminUser;
+    private String adminPassword;
 
 }

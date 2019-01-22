@@ -24,10 +24,13 @@ public class BasicConfiguration extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
 
+        String adminUser = _config.getAdminUser();
+        String adminPassword = _config.getAdminPassword();
+
         PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
         auth.inMemoryAuthentication()
-                .withUser("admin")
-                .password(encoder.encode("RockNRollIn2019!"))
+                .withUser(adminUser)
+                .password(encoder.encode(adminPassword))
                 .roles("ADMIN");
 
     }

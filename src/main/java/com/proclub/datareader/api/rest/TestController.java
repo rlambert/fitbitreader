@@ -40,6 +40,8 @@ public class TestController extends ApiBase {
 
     private static Logger _logger = LoggerFactory.getLogger(TestController.class);
 
+
+
     private void getAuth() throws InterruptedException, ExecutionException, IOException {
         // Replace these with your client id and secret fron your app
         final String clientId = "22DFJ8";
@@ -147,7 +149,7 @@ public class TestController extends ApiBase {
             throw HttpClientErrorException.create(HttpStatus.FORBIDDEN, "Resource not available.", null, null, null);
         }
 
-        
+
         return "OK";
     }
 }
