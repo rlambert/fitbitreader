@@ -30,6 +30,12 @@ public class AppConfig {
     private String fitbitWeightUrl;
     private String fitbitStepsUrl;
     private String fitbitActivityUrl;
+
+    private int fitbitActivityLevelWindowDays;
+    private int fitbitSleepWindowDays;
+    private int fitbitWeightWindowDays;
+    private int fitbitStepsWindowDays;
+
     private String pollCron;
     private boolean fitbitSendAuthEmail;
     private boolean unittest;

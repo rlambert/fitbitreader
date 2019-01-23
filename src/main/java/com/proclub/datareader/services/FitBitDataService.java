@@ -11,8 +11,10 @@ import com.proclub.datareader.dao.*;
 import com.proclub.datareader.model.FitBitApiData;
 import com.proclub.datareader.model.activitylevel.ActivityLevelData;
 import com.proclub.datareader.model.security.OAuthCredentials;
+import com.proclub.datareader.model.sleep.Sleep;
 import com.proclub.datareader.model.sleep.SleepData;
 import com.proclub.datareader.model.steps.StepsData;
+import com.proclub.datareader.model.weight.Weight;
 import com.proclub.datareader.model.weight.WeightData;
 import com.proclub.datareader.utils.StringUtils;
 import okhttp3.OkHttpClient;
@@ -27,6 +29,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -141,7 +144,9 @@ public class FitBitDataService {
         }
         else {
             ResponseBody responseBody = response.body();
-            json = responseBody.toString();
+            if (responseBody != null) {
+                json = responseBody.toString();
+            }
             response.close();
         }
         return json;
@@ -152,14 +157,14 @@ public class FitBitDataService {
      * we get called with their verify code. This method uses that code to
      * request an OAuth2 token, which is then returned in a JWT. That token
      * is converted to ProClub's tweaked OAuthCredentials object and returned.
-     * @param code
-     * @return OAuthCredentials
-     * @throws InterruptedException
-     * @throws ExecutionException
-     * @throws IOException
-     * @throws IllegalArgumentException
+     * @param code - String
+     * @return OAuthCredentials - includes OAuth access and refresh tokens
+     * @throws InterruptedException - not normal
+     * @throws ExecutionException - also not likely
+     * @throws IOException - if FitBit.com API is down
+     * @throws IllegalArgumentException - if values sent to API are incorrect
      */
-    public OAuthCredentials getAuth(String code) throws InterruptedException, ExecutionException, IOException, IllegalArgumentException {
+    OAuthCredentials getAuth(String code) throws InterruptedException, ExecutionException, IOException, IllegalArgumentException {
         // trade the Request Token and Verifier Code for the Access Token
         OAuth2AccessToken oauth2AccessToken = _oauthService.getAccessToken(code);
         if (!(oauth2AccessToken instanceof FitBitOAuth2AccessToken)) {
@@ -174,12 +179,11 @@ public class FitBitDataService {
      * Uses the refresh token to request a new OAuth2 token
      * @param refreshToken - String
      * @return OAuthCredentials
-     * @throws IOException
-     * @throws ExecutionException
-     * @throws InterruptedException
+     * @throws InterruptedException - not normal
+     * @throws ExecutionException - also not likely
+     * @throws IOException - if FitBit.com API is down
      */
-    public OAuthCredentials refreshToken(String refreshToken)
-                throws IOException, ExecutionException, InterruptedException {
+    public OAuthCredentials refreshToken(String refreshToken) throws IOException, ExecutionException, InterruptedException {
         OAuth2AccessToken token = _oauthService.refreshAccessToken(refreshToken);
         // the original token already had to have been a FitBit token or we
         // wouldn't be here
@@ -188,14 +192,13 @@ public class FitBitDataService {
 
     /**
      * convenience overload
-     * @param oldCreds
+     * @param oldCreds - OAuthCredentials
      * @return OAuthCredentials
-     * @throws IOException
-     * @throws ExecutionException
-     * @throws InterruptedException
+     * @throws InterruptedException - not normal
+     * @throws ExecutionException - also not likely
+     * @throws IOException - if FitBit.com API is down
      */
-    public OAuthCredentials refreshToken(OAuthCredentials oldCreds)
-                throws IOException, ExecutionException, InterruptedException {
+    public OAuthCredentials refreshToken(OAuthCredentials oldCreds) throws IOException, ExecutionException, InterruptedException {
         return refreshToken(oldCreds.getRefreshToken());
     }
 
@@ -246,6 +249,21 @@ public class FitBitDataService {
     }
 
     /**
+     * helper method to find an existing ActivityLevel
+     * @param fitbitData
+     * @param dbActivityLevels
+     * @return
+     */
+    private Optional<ActivityLevel> findActivityLevelMatch(ActivityLevel fitbitData, List<ActivityLevel> dbActivityLevels) {
+        for(ActivityLevel row : dbActivityLevels) {
+            if (row.getTrackDateTime().isEqual(fitbitData.getTrackDateTime())) {
+                return Optional.of(row);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * getActivityLevels returns ActivityLevel data for a single day from the
      * FitBit API
      * @param oauth - OAuthCredentials reference
@@ -253,11 +271,66 @@ public class FitBitDataService {
      * @return - SleepData
      * @throws IOException
      */
-    public ActivityLevelData getActivityLevels(OAuthCredentials oauth, LocalDateTime dt)
+    public List<ActivityLevel> getActivityLevels(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt)
                     throws IOException, ExecutionException, InterruptedException {
-        // makeApiRequest(Class dataClass, String baseUrl, OAuthCredentials oauth, Instant dt)
+        LocalDateTime dtMidnight = LocalDateTime.of(dt.getYear(), dt.getMonth(), dt.getDayOfMonth(), 0, 0, 0, 0);
+
+        // go back in time a configurable number of days
+        LocalDateTime dtStart = dtMidnight.minusDays(_config.getFitbitActivityLevelWindowDays());
         String baseUrl = _config.getFitbitActivityUrl();
-        return (ActivityLevelData) makeApiRequest(ActivityLevelData.class, baseUrl, oauth, dt);
+
+        // now iterate through each day in window
+        LocalDateTime dtloop = dtStart;
+        LocalDateTime dtEnd = dt.plusDays(1);
+
+        // these are in TrackDateOrder
+        List<ActivityLevel> dbActivityLevels = _activityLevelService.findByUserAndTrackDateWindow(dc.getFkUserGuid(), dtStart, dtEnd);
+
+        List<ActivityLevel> apiResults = new ArrayList<>();
+
+        while (dtloop.isBefore(dtEnd)) {
+            // ask FitBit API for this day
+            ActivityLevelData data = (ActivityLevelData) makeApiRequest(ActivityLevelData.class, baseUrl, oauth, dtloop);
+            if (data != null) {
+                // convert to our DTO
+                ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtloop, data);
+                Optional<ActivityLevel> optMatch = findActivityLevelMatch(activityLevel, dbActivityLevels);
+                if (optMatch.isPresent()) {
+                    ActivityLevel dbLevel = optMatch.get();
+                    activityLevel.setActivityLevelId(dbLevel.getActivityLevelId());
+                }
+
+                // this is an insert (if no match already in DB) or update
+                activityLevel = _activityLevelService.saveActivityLevel(activityLevel);
+                apiResults.add(activityLevel);
+                _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s - %s", dtloop.toString(), dc.getFkUserGuid())));
+                dtloop.plusDays(1);
+            }
+            else {
+                _logger.info(StringUtils.formatMessage(String.format("No ActivityLevelData available for %s - %s", dtloop.toString(), dc.getFkUserGuid())));
+            }
+        }
+        return apiResults;
+    }
+
+    /**
+     * helper to find a given Weight instance in a list of
+     * DB results for Weight
+     * @param weight - Weight
+     * @param dbResults - List&lt;SimpleTrack&gt;
+     * @return Optional&lt;SimpleTrack&gt;
+     */
+    private Optional<SimpleTrack> findWeightMatch(Weight weight, List<SimpleTrack> dbResults) {
+        String dtStr = weight.getDate() + "T" + weight.getTime() + ".000";
+        LocalDateTime dt = LocalDateTime.parse(dtStr);
+        ZoneOffset zos = ZoneOffset.ofHours(0);
+
+        for (SimpleTrack item : dbResults) {
+            if (item.getTrackDateTime() == dt.toEpochSecond(zos)) {
+                return Optional.of(item);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -266,12 +339,52 @@ public class FitBitDataService {
      * @param oauth - OAuthCredentials reference
      * @param dt - Instant
      * @return - SleepData
-     * @throws IOException
+     * @throws InterruptedException - not normal
+     * @throws ExecutionException - also not likely
+     * @throws IOException - if FitBit.com API is down
      */
-    public WeightData getWeight(OAuthCredentials oauth, LocalDateTime dt)
-            throws IOException, ExecutionException, InterruptedException {
-        String baseUrl = _config.getFitbitWeightUrl();
-        return (WeightData) makeApiRequest(WeightData.class, baseUrl, oauth, dt);
+    public WeightData getWeight(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
+        String dtStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        // the URL already has the date range embedded into the URL
+        String baseUrl = _config.getFitbitWeightUrl().replace("${date}", dtStr);
+
+        // go back in time a configurable number of days
+        LocalDateTime dtStart = dt.minusDays(_config.getFitbitWeightWindowDays());
+        LocalDateTime dtEnd   = dt;
+        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.WEIGHT);
+
+        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, baseUrl, oauth, dt);
+        for(Weight wt : apiResults.getWeight()) {
+            Optional<SimpleTrack> result = findWeightMatch(wt, dbResults);
+            SimpleTrack newTracker = new SimpleTrack(wt);
+            if (result.isPresent()) {
+                SimpleTrack dbWt = result.get();
+                newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
+            }
+            // this will update an existing record if there is an ID
+            _trackService.createSimpleTrack(newTracker);
+        }
+        return apiResults;
+    }
+
+    /**
+     * helper to find a given Sleep instance in a list of
+     * DB results for Sleep data
+     * @param dbResults - List&lt;SimpleTrack&gt;
+     * @param sleep - Sleep
+     * @return Optional&lt;SimpleTrack&gt;
+     */
+    private Optional<SimpleTrack> findSleepMatch(Sleep sleep, List<SimpleTrack> dbResults) {
+        String dtStr = sleep.getDateOfSleep();
+        LocalDateTime dt = LocalDateTime.parse(dtStr);
+        ZoneOffset zos = ZoneOffset.ofHours(0);
+
+        for (SimpleTrack item : dbResults) {
+            if (item.getTrackDateTime() == dt.toEpochSecond(zos)) {
+                return Optional.of(item);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -282,10 +395,33 @@ public class FitBitDataService {
      * @return - SleepData
      * @throws IOException
      */
-    public SleepData getSleep(OAuthCredentials oauth, LocalDateTime dt)
-            throws IOException, ExecutionException, InterruptedException {
-        String baseUrl = _config.getFitbitSleepUrl();
-        return (SleepData) makeApiRequest(SleepData.class, baseUrl, oauth, dt);
+    public SleepData getSleep(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
+
+        LocalDateTime dtStart = dt.minusDays(_config.getFitbitSleepWindowDays());
+        LocalDateTime dtEnd   = dt.plusDays(1);
+        LocalDateTime dtLoop  = dtStart;
+
+        // get all API data for our date-range
+        String dtStartStr = dtStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String dtEndStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));         // original date is end of range
+
+        // https://api.fitbit.com/1.2/user/-/sleep/date/${startDate}/${endDate}.json
+        String baseUrl = _config.getFitbitSleepUrl().replace("${startDate}", dtStartStr).replace("${endDate}", dtEndStr);
+        SleepData sleepData = (SleepData) makeApiRequest(SleepData.class, baseUrl, oauth, dt);
+
+        // get all database rows that overlap; go back in time a configurable number of days
+        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.SLEEP);
+
+        for(Sleep sleep : sleepData.getSleep()) {
+            Optional<SimpleTrack> result = findSleepMatch(sleep, dbResults);
+            SimpleTrack newTracker = new SimpleTrack(sleep);
+            if (result.isPresent()) {
+                SimpleTrack dbWt = result.get();
+                newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
+            }
+            // this will update an existing record if there is an ID
+            _trackService.createSimpleTrack(newTracker);
+        }
     }
 
     /**
@@ -295,9 +431,31 @@ public class FitBitDataService {
      * @return - StepsData
      * @throws IOException
      */
-    public StepsData getSteps(OAuthCredentials oauth, LocalDateTime dt)
+    public StepsData getSteps(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt)
                 throws IOException, ExecutionException, InterruptedException {
-        String baseUrl = _config.getFitbitStepsUrl();
+
+        String dtStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String baseUrl = _config.getFitbitWeightUrl().replace("${date}", dtStr);
+
+        SleepData sleep = (SleepData) makeApiRequest(SleepData.class, baseUrl, oauth, dt);
+
+        // go back in time a configurable number of days
+        LocalDateTime dtStart = dt.minusDays(_config.getFitbitStepsWindowDays());
+        LocalDateTime dtEnd   = dt;
+        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.SLEEP);
+        SleepData dsleep = (StepsData) makeApiRequest(StepsData.class, baseUrl, oauth, dt);
+        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, baseUrl, oauth, dt);
+        for(Weight wt : apiResults.getWeight()) {
+            Optional<SimpleTrack> result = findMatch(dbResults, wt);
+            SimpleTrack newTracker = new SimpleTrack(wt);
+            if (result.isPresent()) {
+                SimpleTrack dbWt = result.get();
+                newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
+            }
+            // this will update an existing record if there is an ID
+            _trackService.createSimpleTrack(newTracker);
+        }
+
         return (StepsData) makeApiRequest(StepsData.class, baseUrl, oauth, dt);
 
         /*
@@ -469,9 +627,9 @@ public class FitBitDataService {
         if (!creds.isExpired()) {
             // we've valid got credentials, so let's fetch us some ActivityLevel data
             try {
-                ActivityLevelData aldata = getActivityLevels(creds, dtNow);
-                ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtNow, aldata);
-                _activityLevelService.createActivityLevel(activityLevel);
+                List<ActivityLevel> aldata = getActivityLevels(dc, creds, dtNow);
+                //ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtNow, aldata);
+                //_activityLevelService.createActivityLevel(activityLevel);
                 _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
@@ -513,7 +671,7 @@ public class FitBitDataService {
 
             // fetch and save Weight data
             try {
-                WeightData wtData = getWeight(creds, dtNow);
+                WeightData wtData = getWeight(dc, creds, dtNow);
                 if (wtData.getWeight().size() > 0) {
                     SimpleTrack wtTrack = new SimpleTrack(wtData);
                     _trackService.createSimpleTrack(wtTrack);

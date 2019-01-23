@@ -20,17 +20,22 @@ import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.proclub.datareader.api.ApiBase;
-import com.proclub.datareader.services.DataCenterConfigService;
-import com.proclub.datareader.services.EmailService;
+import com.proclub.datareader.config.AppConfig;
+import com.proclub.datareader.dao.*;
+import com.proclub.datareader.services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 
@@ -42,12 +47,24 @@ public class TestController extends ApiBase {
 
     private static Logger _logger = LoggerFactory.getLogger(TestController.class);
 
-    private EmailService _emailService;
-    private DataCenterConfigService _dcConfigService;
+    private AppConfig _config;                          // app configuration instance
+    private UserService _userService;                   // our service to fetch user data
+    private DataCenterConfigService _dcService;         // get DataCenterConfig table
+    private ActivityLevelService _activityLevelService; // get/put ActivityLevel table
+    private SimpleTrackService _trackService;           // get/put SimpleTrack table data
+    private ClientService _clientService;               // gets Client table data
+    private EmailService _emailService;                 // centralized email code
 
-    public TestController(EmailService emailService, DataCenterConfigService dcConfigService) {
+    public TestController(AppConfig config, UserService userService, DataCenterConfigService dcService,
+                          ActivityLevelService activityLevelService, SimpleTrackService trackService,
+                          ClientService clientService, EmailService emailService) {
+        _config = config;
+        _userService = userService;
+        _dcService = dcService;
+        _activityLevelService = activityLevelService;
+        _trackService = trackService;
+        _clientService = clientService;
         _emailService = emailService;
-        _dcConfigService = dcConfigService;
     }
 
 
@@ -152,6 +169,11 @@ public class TestController extends ApiBase {
         }
     }
 
+    /**
+     * helper method to make sure this API is only available via localhost
+     * @param req - HttpServletRequest
+     * @throws HttpClientErrorException
+     */
     private void checkHost(HttpServletRequest req) throws HttpClientErrorException {
         if ((!req.getRequestURL().toString().contains("localhost")) && (!req.getRequestURL().toString().contains("127.0.0.1"))) {
             throw HttpClientErrorException.create(HttpStatus.FORBIDDEN, "Resource not available.", null, null, null);
@@ -175,7 +197,79 @@ public class TestController extends ApiBase {
     @GetMapping(value = {"test/db"}, produces = "application/json")
     public String runDbTest(HttpServletRequest req) throws IOException {
         checkHost(req);
-        int count = _dcConfigService.findAllFitbitActive().size();
+        int count = _dcService.findAllFitbitActive().size();
         return "{\"totalActiveFitBitUsers\":\"" + count + "\"}";
     }
+
+    @GetMapping(value = {"test/db/datacenterconfig/{id}/{system}"}, produces = "application/json")
+    public DataCenterConfig runDbTestDc(@PathVariable UUID id, @PathVariable int system, HttpServletRequest req) throws IOException {
+        checkHost(req);
+        DataCenterConfig.Pkey key = new DataCenterConfig.Pkey(id, system);
+        Optional<DataCenterConfig> opt = _dcService.findById(key);
+        if (!opt.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"DataCenterConfig ID: %s - %s does not exist.\"}", id, system));
+        }
+        else {
+            return opt.get();
+        }
+    }
+
+    @GetMapping(value = {"test/db/user/{id}"}, produces = "application/json")
+    public User runDbTestUser(@PathVariable String id, HttpServletRequest req) throws IOException {
+        checkHost(req);
+        Optional<User> opt = _userService.findById(UUID.fromString(id));
+        if (!opt.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"User %s does not exist.\"}", id));
+        }
+        else {
+            return opt.get();
+        }
+    }
+
+
+    @GetMapping(value = {"test/db/user/email/{address}"}, produces = "application/json")
+    public List<User> runDbTestUserEmail(@PathVariable String address, HttpServletRequest req) throws IOException {
+        checkHost(req);
+        List<User> users = _userService.findByEmail(address);
+        return users;
+    }
+
+
+    @GetMapping(value = {"test/db/activitylevel/{id}"}, produces = "application/json")
+    public ActivityLevel runDbTestActivityLevel(@PathVariable long id, HttpServletRequest req) throws IOException {
+        checkHost(req);
+        Optional<ActivityLevel> opt = _activityLevelService.findById(id);
+        if (!opt.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"ActivityLevel ID: %s does not exist.\"}", id));
+        }
+        else {
+            return opt.get();
+        }
+    }
+
+    @GetMapping(value = {"test/db/client/{id}"}, produces = "application/json")
+    public Client runDbTestClient(@PathVariable int id, HttpServletRequest req) throws IOException {
+        checkHost(req);
+        Optional<Client> opt = _clientService.findById(id);
+        if (!opt.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"Client ID: %s does not exist.\"}", id));
+        }
+        else {
+            return opt.get();
+        }
+    }
+
+    @GetMapping(value = {"test/db/simpletrack/{id}"}, produces = "application/json")
+    public SimpleTrack runDbTestTrack(@PathVariable UUID id, HttpServletRequest req) throws IOException {
+        checkHost(req);
+        Optional<SimpleTrack> opt = _trackService.findById(id);
+        if (!opt.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"SimpleTrack ID: %s does not exist.\"}", id));
+        }
+        else {
+            return opt.get();
+        }
+    }
+
+
 }

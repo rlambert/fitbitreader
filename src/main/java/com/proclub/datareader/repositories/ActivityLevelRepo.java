@@ -26,7 +26,7 @@ public interface ActivityLevelRepo extends JpaRepository<ActivityLevel, Long> {
 
     List<ActivityLevel> findByFkUserGuidAndTrackDateTimeAfter(UUID uid, LocalDateTime dtStart);
 
-    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeBetween(UUID uid, LocalDateTime dtStart, LocalDateTime dtEnd);
+    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeBetweenOrderByTrackDateTime(UUID uid, LocalDateTime dtStart, LocalDateTime dtEnd);
 
     List<ActivityLevel> findAllByTrackDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
 

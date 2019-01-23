@@ -252,6 +252,19 @@ public class SimpleTrack {
         this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
     }
 
+    public SimpleTrack(Sleep sleep) {
+        this.entityType = Entity.SLEEP.entityValue;
+        this.simpleTrackGuid = UUID.randomUUID();
+        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+        this.valInt = (int) sleep.getMinutesToFallAsleep();
+        this.valDec = (int) (sleep.getMinutesAsleep()/60);
+
+        // ProClub keeps time in seconds since Epoch
+        this.valTime = (int) (Instant.parse(sleep.getStartTime()).toEpochMilli()/1000);
+        this.valTime2 = (int) (Instant.parse(sleep.getEndTime()).toEpochMilli()/1000);
+        this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
+    }
+
     /**
      * ctor for Steps data
      * @param stepsData - StepsData
@@ -294,5 +307,12 @@ public class SimpleTrack {
         this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);
     }
 
+    public SimpleTrack(Weight wt) {
+        this.entityType = Entity.WEIGHT.entityValue;
+        this.simpleTrackGuid = UUID.randomUUID();
+        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+        this.valDec = wt.getWeight();
+        this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);
+    }
 
 }

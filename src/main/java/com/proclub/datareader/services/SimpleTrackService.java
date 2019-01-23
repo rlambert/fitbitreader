@@ -64,12 +64,12 @@ public class SimpleTrackService {
         return _repo.findAllByTrackDateTimeBetween(dtStart, dtEnd);
     }
 
-    public List<SimpleTrack> findByUserTrackDateEntity(UUID userId, LocalDateTime dtStart,
-                                                       SimpleTrack.Entity etype, SimpleTrack.SyncStatus status) {
+    public List<SimpleTrack> findByUserTrackDateRange(UUID userId, LocalDateTime dtStart, LocalDateTime dtEnd,
+                                                       SimpleTrack.Entity etype) {
         // we get to assume FitBit as the source system for this app
         short src = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
-        return _repo.findByTrackDateTimeAndFkUserGuidAndSourceSystemAndEntityTypeAndSync(dtStart, userId, src,
-                                                                                etype.entityValue, status.syncStatus);
+        return _repo.findByTrackDateTimeBetweenAndFkUserGuidAndSourceSystemAndEntityTypeOrderByTrackDateTime(
+                            dtStart, dtEnd, userId, src, etype.entityValue);
     }
 
 }
