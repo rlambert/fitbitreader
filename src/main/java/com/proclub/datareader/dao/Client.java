@@ -35,6 +35,7 @@ public class Client {
     @Column(name="isCastMember")
     private boolean isCastMember;
 
+
     public Client() {}
 
     /**

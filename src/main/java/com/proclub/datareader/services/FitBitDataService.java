@@ -7,10 +7,7 @@ import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.model.OAuth2AccessToken;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.proclub.datareader.config.AppConfig;
-import com.proclub.datareader.dao.ActivityLevel;
-import com.proclub.datareader.dao.DataCenterConfig;
-import com.proclub.datareader.dao.SimpleTrack;
-import com.proclub.datareader.dao.User;
+import com.proclub.datareader.dao.*;
 import com.proclub.datareader.model.FitBitApiData;
 import com.proclub.datareader.model.activitylevel.ActivityLevelData;
 import com.proclub.datareader.model.security.OAuthCredentials;
@@ -31,10 +28,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
@@ -58,9 +52,11 @@ public class FitBitDataService {
 
     private AppConfig _config;                          // application config
     private UserService _userService;                   // our service to fetch user data
-    private DataCenterConfigService _dcService;         // DataCenterConfig service
-    private ActivityLevelService _activityLevelService; // get/put ActivityLevel
-    private SimpleTrackService _trackService;           // get/put SimpleTrack data
+    private DataCenterConfigService _dcService;         // get DataCenterConfig table
+    private ActivityLevelService _activityLevelService; // get/put ActivityLevel table
+    private SimpleTrackService _trackService;           // get/put SimpleTrack table data
+    private ClientService _clientService;               // gets Client table data
+    private EmailService _emailService;                 // centralized email code
     private final OAuth20Service _oauthService;         // this is a scribejava library instance
 
     private OkHttpClient _client = new OkHttpClient();  // for accessing web API
@@ -80,12 +76,15 @@ public class FitBitDataService {
      */
     @Autowired
     public FitBitDataService(AppConfig config, UserService userService, DataCenterConfigService dcService,
-                             ActivityLevelService activityLevelService, SimpleTrackService trackService) {
+                             ActivityLevelService activityLevelService, SimpleTrackService trackService,
+                             ClientService clientService, EmailService emailService) {
         _config = config;
         _userService = userService;
         _dcService = dcService;
         _activityLevelService = activityLevelService;
         _trackService = trackService;
+        _clientService = clientService;
+        _emailService = emailService;
 
         // we need the config instance to build the library object,
         // so we instantiate the service object here
@@ -138,12 +137,7 @@ public class FitBitDataService {
     private String processResponseBody(Response response) throws IOException {
         String json = "";
         if (!response.isSuccessful()) {
-            if (response.code() == HttpStatus.UNAUTHORIZED.value()) {
-                // get new token with refresh_token
-            }
-            else {
-                throw new IOException("Unexpected response code: " + response);
-            }
+            throw new IOException("Unexpected response code: " + response);
         }
         else {
             ResponseBody responseBody = response.body();
@@ -349,9 +343,23 @@ public class FitBitDataService {
             if (opt.isPresent()) {
                 User user = opt.get();
                 if (!StringUtils.isNullOrEmpty(user.getEmail())) {
-                    // TODO: Send FitBit Auth Email
+                    String fname = "";
+                    List<Client> clientList = _clientService.findByEmail(user.getEmail());
+                    if (clientList.size() == 0) {
+                        _logger.error("No Client row with matching User.email of '%s'", user.getEmail());
+                    }
+                    else {
+                        Client client = clientList.get(0);
+                        fname = client.getFname();
+                    }
 
+                    // notify user with email (emailService logs send errors)
+                    _emailService.sendTemplatedEmail(user.getEmail(), fname);
                     _logger.info(StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", user.getEmail(), dc.getFkUserGuid())));
+                }
+                else {
+                    // however unlikely, we should at least log not having an email addy
+                    _logger.error(String.format("No email address in User table for userId: %s", dc.getFkUserGuid()));
                 }
             }
             else {
@@ -360,6 +368,42 @@ public class FitBitDataService {
         }
     }
 
+    /**
+     * helper method to update DataCenterConfig row
+     * @param dc - DataCenterConfig
+     * @param dt - LocalDateTime
+     */
+    private void updateDataCenterConfigError(DataCenterConfig dc, LocalDateTime dt) {
+        dc.setStatus(DataCenterConfig.PartnerStatus.RefreshErr.status);
+        DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
+        dc.setStatusText(String.format("Refresh Error for day: %s", dt.format(DateTimeFormatter.ISO_LOCAL_DATE)));
+        _dcService.updateDataCenterConfig(dc);
+    }
+
+    /**
+     * mark a DataCenterConfig as a refresh in progress
+     * @param dc - DataCenterconfig
+     * @param dt - LocalDateTime
+     */
+    private void updateDataCenterConfigDuringRefresh(DataCenterConfig dc, LocalDateTime dt) {
+        dc.setStatus(DataCenterConfig.PartnerStatus.AuthErr.status);
+        DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
+        dc.setStatusText("Refresh in progress");
+        _dcService.updateDataCenterConfig(dc);
+    }
+
+    /**
+     *
+     * @param dc
+     * @param dt
+     */
+    private void updateDataCenterConfigSuccess(DataCenterConfig dc, LocalDateTime dt) {
+        dc.setStatus(DataCenterConfig.PartnerStatus.Active.status);
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM d, YYYY - hh:mm:ss a");
+        dc.setStatusText(dt.format(fmt));
+        dc.setLastChecked(dt);
+        _dcService.updateDataCenterConfig(dc);
+    }
 
     /**
      * entry point for grabbing all available FitBit data for
@@ -382,90 +426,106 @@ public class FitBitDataService {
 
                 // send notification email if enabled
                 notifyUser(dc);
+                updateDataCenterConfigError(dc, dtNow);
+                return;
             }
             else {
                 // we have OAuth credentials
                 creds = OAuthCredentials.create(dc.getCredentials());
-                if (creds.isExpired()) {
-                    // need to refresh
-                    try {
-                        // if we can refresh token...
-                        creds = refreshToken(creds);
-                        if (creds != null) {
-                            // ...then we need to update the database as well
-                            dc.setCredentials(creds.toJson());
-                            _dcService.updateDataCenterConfig(dc);
-                        }
-                    }
-                    catch(IOException | ExecutionException | InterruptedException ex) {
-                        String msg = String.format("Could not refresh OAuth2 token for user '%s'", dc.getFkUserGuid());
-                        _logger.error(msg, ex);
-                        // send notification email if enabled
-                        notifyUser(dc);
-                    }
-                }
-
-                // we've got credentials, so let's fetch us some ActivityLevel data
-                try {
-                    ActivityLevelData aldata = getActivityLevels(creds, dtNow);
-                    ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtNow, aldata);
-                    _activityLevelService.createActivityLevel(activityLevel);
-                }
-                catch(InterruptedException | ExecutionException ex) {
-                    _logger.error(StringUtils.formatError(String.format("Error saving ActivityLevelData for user '%s'", dc.getFkUserGuid()), ex));
-                }
-
-                // now fetch and save Sleep data
-                try {
-                    SleepData sleepData = getSleep(creds, dtNow);
-                    if (sleepData.getSleep().size() > 0) {
-                        SimpleTrack sleepTrack = new SimpleTrack(sleepData);
-                        _trackService.createSimpleTrack(sleepTrack);
-                    }
-                    else {
-                        _logger.info(StringUtils.formatMessage(String.format("No sleep data for user '%s' at this time.", dc.getFkUserGuid())));
-                    }
-                }
-                catch(InterruptedException | ExecutionException ex) {
-                    _logger.error(StringUtils.formatError(String.format("Error saving Sleep data for user '%s'", dc.getFkUserGuid()), ex));
-                }
-
-                // fetch and save Steps data
-                try {
-                    StepsData stepsData = getSteps(creds, dtNow);
-                    if (stepsData.getSteps().size() > 0) {
-                        SimpleTrack sleepTrack = new SimpleTrack(stepsData);
-                        _trackService.createSimpleTrack(sleepTrack);
-                    }
-                    else {
-                        _logger.info(StringUtils.formatMessage(String.format("No Steps data for user '%s' at this time.", dc.getFkUserGuid())));
-                    }
-                }
-                catch(InterruptedException | ExecutionException ex) {
-                    _logger.error(StringUtils.formatError(String.format("Error saving Steps data for user '%s'", dc.getFkUserGuid()), ex));
-                }
-
-
-                // fetch and save Weight data
-                try {
-                    WeightData wtData = getWeight(creds, dtNow);
-                    if (wtData.getWeight().size() > 0) {
-                        SimpleTrack wtTrack = new SimpleTrack(wtData);
-                        _trackService.createSimpleTrack(wtTrack);
-                    }
-                    else {
-                        _logger.info(StringUtils.formatMessage(String.format("No Weight data for user '%s' at this time.", dc.getFkUserGuid())));
-                    }
-                }
-                catch(InterruptedException | ExecutionException ex) {
-                    _logger.error(StringUtils.formatError(String.format("Error saving Weight data for user '%s'", dc.getFkUserGuid()), ex));
-                }
-
             }
         }
         else {
             creds = _authMap.get(dc.getFkUserGuid());
         }
 
+        // update or add to cache
+        _authMap.put(dc.getFkUserGuid(), creds);
+
+        if (creds.isExpired()) {
+            // need to refresh
+            try {
+                updateDataCenterConfigDuringRefresh(dc, dtNow);
+                // if we can refresh token...
+                creds = refreshToken(creds);
+                if (creds != null) {
+                    // ...then we need to update the database as well
+                    dc.setCredentials(creds.toJson());
+                    updateDataCenterConfigSuccess(dc, dtNow);
+                }
+            }
+            catch(IOException | ExecutionException | InterruptedException ex) {
+                String msg = String.format("Could not refresh OAuth2 token for user '%s'", dc.getFkUserGuid());
+                _logger.error(msg, ex);
+                // send notification email if enabled
+                notifyUser(dc);
+                updateDataCenterConfigError(dc, dtNow);
+            }
+        }  // end if creds expired
+
+        // if creds are not expired, our refresh was good, so
+        // we can move forward with pulling data. If they ARE
+        // expired, we fall out the bottom and exit.
+
+        if (!creds.isExpired()) {
+            // we've valid got credentials, so let's fetch us some ActivityLevel data
+            try {
+                ActivityLevelData aldata = getActivityLevels(creds, dtNow);
+                ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtNow, aldata);
+                _activityLevelService.createActivityLevel(activityLevel);
+                _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s", dc.getFkUserGuid())));
+            }
+            catch(InterruptedException | ExecutionException ex) {
+                _logger.error(StringUtils.formatError(String.format("Error saving ActivityLevelData for user '%s'", dc.getFkUserGuid()), ex));
+            }
+
+            // now fetch and save Sleep data
+            try {
+                SleepData sleepData = getSleep(creds, dtNow);
+                if (sleepData.getSleep().size() > 0) {
+                    SimpleTrack sleepTrack = new SimpleTrack(sleepData);
+                    _trackService.createSimpleTrack(sleepTrack);
+                    _logger.info(StringUtils.formatMessage(String.format("SleepData saved for %s", dc.getFkUserGuid())));
+                }
+                else {
+                    _logger.info(StringUtils.formatMessage(String.format("No sleep data for user '%s' at this time.", dc.getFkUserGuid())));
+                }
+            }
+            catch(InterruptedException | ExecutionException ex) {
+                _logger.error(StringUtils.formatError(String.format("Error saving Sleep data for user '%s'", dc.getFkUserGuid()), ex));
+            }
+
+            // fetch and save Steps data
+            try {
+                StepsData stepsData = getSteps(creds, dtNow);
+                if (stepsData.getSteps().size() > 0) {
+                    SimpleTrack sleepTrack = new SimpleTrack(stepsData);
+                    _trackService.createSimpleTrack(sleepTrack);
+                    _logger.info(StringUtils.formatMessage(String.format("StepsData saved for %s", dc.getFkUserGuid())));
+                }
+                else {
+                    _logger.info(StringUtils.formatMessage(String.format("No Steps data for user '%s' at this time.", dc.getFkUserGuid())));
+                }
+            }
+            catch(InterruptedException | ExecutionException ex) {
+                _logger.error(StringUtils.formatError(String.format("Error saving Steps data for user '%s'", dc.getFkUserGuid()), ex));
+            }
+
+
+            // fetch and save Weight data
+            try {
+                WeightData wtData = getWeight(creds, dtNow);
+                if (wtData.getWeight().size() > 0) {
+                    SimpleTrack wtTrack = new SimpleTrack(wtData);
+                    _trackService.createSimpleTrack(wtTrack);
+                    _logger.info(StringUtils.formatMessage(String.format("WeightData saved for %s", dc.getFkUserGuid())));
+                }
+                else {
+                    _logger.info(StringUtils.formatMessage(String.format("No Weight data for user '%s' at this time.", dc.getFkUserGuid())));
+                }
+            }
+            catch(InterruptedException | ExecutionException ex) {
+                _logger.error(StringUtils.formatError(String.format("Error saving Weight data for user '%s'", dc.getFkUserGuid()), ex));
+            }
+        } // end if not expired credentials
     }
 }

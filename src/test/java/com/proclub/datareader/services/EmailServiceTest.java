@@ -7,6 +7,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.io.IOException;
+
 @RunWith(SpringRunner.class)
 @ActiveProfiles("unittest")
 @SpringBootTest
@@ -26,6 +28,15 @@ public class EmailServiceTest {
         String body = "<h1>This is a big headline</h1><p>This is a paragraph.</p>";
 
         _emailService.sendMessage(toAddr, fromAddr, subject, body);
+    }
+
+    @Test
+    public void testEmailTemplate() throws IOException {
+        //String toAddr = "awithington@PROClub.com";
+        //String fname = "Aaron";
+        String toAddr = "rlambert@bpcs.com";
+        String fname = "Ross";
+        _emailService.sendTemplatedEmail(toAddr, fname);
     }
 
 }

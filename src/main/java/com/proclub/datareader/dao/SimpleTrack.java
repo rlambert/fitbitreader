@@ -21,52 +21,6 @@ import java.util.UUID;
 @Data
 public class SimpleTrack {
 
-    public enum PartnerStatus
-    {
-        /*
-         * This is the data in the SimpleTrack.Status column
-         *
-         * relationship between the user and the partner
-         * the state will change as they sign-in, experience data fetch issues or opt-out of the partner
-         */
-
-        Null (-1),
-        SignUp (0),     // new user for this partner
-        Active (1),     // have successfully authed
-        AuthErr (2),    // auth was lost, user must re-auth
-        RefreshErr (3), // partner did not respond or threw error during transmission
-        DataErr(4),     // partner sent invalid tracking data (failed LSO validation)
-        OptOut (5);     // user has opted out of further automatic refreshes but can still view past data
-
-        public short status;
-
-        private PartnerStatus(int status) {
-            this.status = (short) status;
-        }
-    }
-
-    public enum DataStatus
-    {
-        /*
-         * This is the SimpleTrack.DataStatus column
-         *
-         * used to control any running processes for a user for the same partner
-         * ensures no two web pages or processes are running on the same user at the same time
-         */
-
-        Null(-1),
-        New(0),         // ready for next data operation
-        Update(1),      // in the middle of the auth process
-        Refresh(2);      // in the middle of the data refresh process
-
-        public short status;
-
-        private DataStatus(int status) {
-            this.status = (short) status;
-        }
-
-    }
-
     public enum SyncStatus
     {
         Null(-1),

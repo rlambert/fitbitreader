@@ -1,6 +1,7 @@
 package com.proclub.datareader.services;
 
 import com.proclub.datareader.dao.DataCenterConfig;
+import com.proclub.datareader.dao.SimpleTrack;
 import com.proclub.datareader.repositories.DataCenterConfigRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
@@ -81,5 +82,10 @@ Modified datetime NOT NULL
         return _repo.findAll(sort);
     }
 
+    public List<DataCenterConfig> findAllFitbitActive() {
+        int status = DataCenterConfig.PartnerStatus.Active.status;
+        int sourceSystem = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
+        return _repo.findAllByStatusAndSourceSystem(status, sourceSystem);
+    }
 
 }

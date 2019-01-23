@@ -25,5 +25,5 @@ public interface DataCenterConfigRepo extends JpaRepository<DataCenterConfig, Da
     List<DataCenterConfig> findAllByLastCheckedBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
     List<DataCenterConfig> findAllByModifiedAfter(LocalDateTime dtStart);
     List<DataCenterConfig> findAllByModifiedBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
-
+    List<DataCenterConfig> findAllByStatusAndSourceSystem(int status, int sourceSystem);
 }

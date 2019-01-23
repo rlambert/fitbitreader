@@ -20,6 +20,8 @@ import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.proclub.datareader.api.ApiBase;
+import com.proclub.datareader.services.DataCenterConfigService;
+import com.proclub.datareader.services.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -40,6 +42,13 @@ public class TestController extends ApiBase {
 
     private static Logger _logger = LoggerFactory.getLogger(TestController.class);
 
+    private EmailService _emailService;
+    private DataCenterConfigService _dcConfigService;
+
+    public TestController(EmailService emailService, DataCenterConfigService dcConfigService) {
+        _emailService = emailService;
+        _dcConfigService = dcConfigService;
+    }
 
 
     private void getAuth() throws InterruptedException, ExecutionException, IOException {
@@ -143,13 +152,30 @@ public class TestController extends ApiBase {
         }
     }
 
-    @GetMapping(value = {"test/full/{days:[\\d]+}"}, produces = "text/html")
-    public String runTest(@PathVariable int days,  HttpServletRequest req) throws IOException {
+    private void checkHost(HttpServletRequest req) throws HttpClientErrorException {
         if ((!req.getRequestURL().toString().contains("localhost")) && (!req.getRequestURL().toString().contains("127.0.0.1"))) {
             throw HttpClientErrorException.create(HttpStatus.FORBIDDEN, "Resource not available.", null, null, null);
         }
+    }
 
+    @GetMapping(value = {"test/full/{days:[\\d]+}"}, produces = "text/html")
+    public String runTest(@PathVariable int days,  HttpServletRequest req) throws HttpClientErrorException {
+        checkHost(req);
 
         return "OK";
+    }
+
+    @GetMapping(value = {"test/email/{toAddr}/{fname}"}, produces = "text/html")
+    public String runMailTest(@PathVariable String toAddr, @PathVariable String fname, HttpServletRequest req) throws IOException {
+        checkHost(req);
+        _emailService.sendTemplatedEmail(toAddr, fname);
+        return "Email sucessfully sent to: " + toAddr;
+    }
+
+    @GetMapping(value = {"test/db"}, produces = "application/json")
+    public String runDbTest(HttpServletRequest req) throws IOException {
+        checkHost(req);
+        int count = _dcConfigService.findAllFitbitActive().size();
+        return "{\"totalActiveFitBitUsers\":\"" + count + "\"}";
     }
 }

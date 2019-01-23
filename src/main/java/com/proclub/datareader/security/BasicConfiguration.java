@@ -50,7 +50,9 @@ public class BasicConfiguration extends WebSecurityConfigurerAdapter {
                         apiPrefix + "/**"
                 ).permitAll()
 
-                .anyRequest().authenticated()
+                .antMatchers("/actuator/**",
+                        "/admin/**")
+                .authenticated()
                 .and().formLogin()
                 //.loginPage("/login")
                 .permitAll();

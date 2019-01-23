@@ -36,4 +36,8 @@ public class AppConfig {
     private String adminUser;
     private String adminPassword;
 
+    private String authEmailSubject;
+    private String authEmailFromAddr;
+    private String authEmailTemplate;
+
 }

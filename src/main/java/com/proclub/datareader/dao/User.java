@@ -2,9 +2,7 @@ package com.proclub.datareader.dao;
 
 import lombok.Data;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.util.UUID;
 
 @Data
@@ -21,6 +19,9 @@ public class User {
     private String fkUserStorePRO;
     private String postalCode;
     private String fkClientId;
+
+    @Transient
+    private Client client;
 
     /*
         [UserGuid] [uniqueidentifier] NOT NULL,

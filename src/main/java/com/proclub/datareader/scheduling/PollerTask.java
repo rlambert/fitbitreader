@@ -5,12 +5,14 @@ import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.DataCenterConfig;
 import com.proclub.datareader.services.DataCenterConfigService;
 import com.proclub.datareader.services.FitBitDataService;
+import com.proclub.datareader.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -44,17 +46,24 @@ public class PollerTask {
     @Scheduled(cron = "${app.pollcron}")
     public void dataSourcePoller() {
         if (!_config.isUnittest()) {
+            LocalDateTime dt = LocalDateTime.now();
             _logger.info("*** Poller Task Started ****");
-            _logger.info(LocalDateTime.now().toString());
+            _logger.info(dt.toString());
             _logger.info("");
 
             List<DataCenterConfig> subs = _dcService.findAll();
 
             for(DataCenterConfig dc : subs) {
-                //_fitBitService.processAll(dc);
+                try {
+                    _fitBitService.processAll(dc, dt);
+                }
+                catch (IOException ex) {
+                    _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
+                }
+
             }
 
-            _logger.info(String.format("Poll complete: %s total subs processed.", subs.size()));
+            _logger.info(String.format("Poll complete: %s total users processed.", subs.size()));
         }
     }
 

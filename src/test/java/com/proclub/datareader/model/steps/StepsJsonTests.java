@@ -47,7 +47,17 @@ public class StepsJsonTests {
 
     @Test
     public void testDate() {
-        String dtStr = "2018-12-11T00:00:00.00Z";
+
+        DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
+        LocalDateTime dtNow = LocalDateTime.now();
+        String dtStr = dtNow.format(DateTimeFormatter.ISO_LOCAL_DATE);
+        System.out.println(dtStr);
+
+        DateTimeFormatter fmt2 = DateTimeFormatter.ofPattern("MMM d, YYYY - hh:mm:ss a");
+        dtStr = dtNow.format(fmt2);
+        System.out.println(dtStr);
+
+        dtStr = "2018-12-11T00:00:00.00Z";
         //LocalDate dt1 = LocalDate.parse(dtStr);
         Instant dt1 = Instant.parse(dtStr);
         int dtval = (int) (dt1.toEpochMilli()/1000);

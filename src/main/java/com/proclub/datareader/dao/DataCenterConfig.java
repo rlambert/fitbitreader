@@ -9,6 +9,7 @@ import javax.persistence.*;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -18,6 +19,52 @@ import java.util.UUID;
 public class DataCenterConfig {
 
     private static Logger _logger = LoggerFactory.getLogger(DataCenterConfig.class);
+
+    public enum PartnerStatus
+    {
+        /*
+         * This is the data in the SimpleTrack.Status column
+         *
+         * relationship between the user and the partner
+         * the state will change as they sign-in, experience data fetch issues or opt-out of the partner
+         */
+
+        Null (-1),
+        SignUp (0),     // new user for this partner
+        Active (1),     // have successfully authed
+        AuthErr (2),    // auth was lost, user must re-auth
+        RefreshErr (3), // partner did not respond or threw error during transmission
+        DataErr(4),     // partner sent invalid tracking data (failed LSO validation)
+        OptOut (5);     // user has opted out of further automatic refreshes but can still view past data
+
+        public short status;
+
+        private PartnerStatus(int status) {
+            this.status = (short) status;
+        }
+    }
+
+    public enum DataStatus
+    {
+        /*
+         * This is the SimpleTrack.DataStatus column
+         *
+         * used to control any running processes for a user for the same partner
+         * ensures no two web pages or processes are running on the same user at the same time
+         */
+
+        Null(-1),
+        New(0),         // ready for next data operation
+        Update(1),      // in the middle of the auth process
+        Refresh(2);      // in the middle of the data refresh process
+
+        public short status;
+
+        private DataStatus(int status) {
+            this.status = (short) status;
+        }
+
+    }
 
     @Data
     public static class Pkey implements Serializable {
@@ -40,7 +87,7 @@ public class DataCenterConfig {
     private int sourceSystem;
 
     @Column(name="LastChecked")
-    private Instant lastChecked;
+    private LocalDateTime lastChecked;
 
     @Column(name="PanelDisplay")
     private int panelDisplay;
@@ -103,7 +150,7 @@ public class DataCenterConfig {
      * @param credentials
      * @param modified
      */
-    public DataCenterConfig(UUID fkUserGuid, int sourceSystem, Instant lastChecked, int panelDisplay, int status,
+    public DataCenterConfig(UUID fkUserGuid, int sourceSystem, LocalDateTime lastChecked, int panelDisplay, int status,
                             String statusText, int dataStatus, String credentials, Instant modified) {
         this.fkUserGuid = fkUserGuid;
         this.sourceSystem = sourceSystem;
