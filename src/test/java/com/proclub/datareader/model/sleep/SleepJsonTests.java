@@ -19,5 +19,6 @@ public class SleepJsonTests {
         assertNotNull(sleepData);
 
         SimpleTrack st = new SimpleTrack(sleepData);
+        assertNotNull(st);
     }
 }

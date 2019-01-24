@@ -12,7 +12,7 @@
     </parent>
     <groupId>com.proclub</groupId>
     <artifactId>datareader</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0.2</version>
     <name>datareader</name>
     <description>Fitness API data reader</description>
 
@@ -30,11 +30,13 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!--
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
+        -->
 
         <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
@@ -109,6 +111,27 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
+
+        <!--
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.8.0-beta2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+        -->
 
     </dependencies>
 

@@ -1,8 +1,8 @@
 /*
-  This is for local unit testing in H2
+  This is for testing in Sql Server
  */
 
-CREATE TABLE User(
+CREATE TABLE Users (
     UserGuid uniqueidentifier PRIMARY KEY NOT NULL,
     ModifiedDateTime int NOT NULL,
     ClientType int NOT NULL,
@@ -13,17 +13,8 @@ CREATE TABLE User(
     fkClientId varchar(200) NULL
 );
 
-CREATE TABLE UserSession(
-    RememberUntil int NULL,
-    SessionToken uniqueidentifier NOT NULL,
-    DatabaseVersion varchar(50) NOT NULL,
-    SessionTokenExpiresDate int NOT NULL,
-    fkUserGuid uniqueidentifier NOT NULL,
-    fkDeviceGuid uniqueidentifier NOT NULL
-);
-
 CREATE TABLE Client (
-    ClientId int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    ClientId int NOT NULL PRIMARY KEY IDENTITY,
     ClientType int NOT NULL,
     Fname varchar(40) NULL,
     Lname varchar(60) NULL,
@@ -36,7 +27,7 @@ CREATE TABLE Client (
     Logon varchar(254) NOT NULL,
     Pwd varchar(200) NULL,
     Status int NOT NULL,
-    isCastMember bit NOT NULL default false
+    isCastMember bit NOT NULL default 0
 );
 
 CREATE TABLE DataCenterConfig(

@@ -3,17 +3,17 @@ package com.proclub.datareader.dao;
 import com.proclub.datareader.model.activitylevel.ActivityLevelData;
 import lombok.Data;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static javax.persistence.GenerationType.IDENTITY;
 
-@Entity
 @Data
+@Entity
+@Table(name="ActivityLevel", schema="dbo")
+//@Table(name="ActivityLevel")
 public class ActivityLevel {
 
     @Id
@@ -71,7 +71,7 @@ public class ActivityLevel {
                          int lightlyActiveMinutes, int veryActiveMinutes, boolean deviceReported) {
         this.fkUserGuid = fkUserGuid;
         this.modifiedDateTime = modifiedDateTime;
-        this.trackDateTime = trackDateTime;
+        this.trackDateTime = trackDateTime.truncatedTo(ChronoUnit.SECONDS);
         this.fairlyActiveMinutes = fairlyActiveMinutes;
         this.lightlyActiveMinutes = lightlyActiveMinutes;
         this.veryActiveMinutes = veryActiveMinutes;
@@ -88,10 +88,12 @@ public class ActivityLevel {
     public ActivityLevel (UUID fkUserGuid, LocalDateTime trackDateTime, ActivityLevelData actData) {
         this.fkUserGuid = fkUserGuid;
         this.modifiedDateTime = LocalDateTime.now();
-        this.trackDateTime = trackDateTime;
+        this.trackDateTime = trackDateTime.truncatedTo(ChronoUnit.SECONDS);
         this.fairlyActiveMinutes = (int) actData.getSummary().getFairlyActiveMinutes();
         this.lightlyActiveMinutes = (int) actData.getSummary().getLightlyActiveMinutes();
         this.veryActiveMinutes = (int) actData.getSummary().getVeryActiveMinutes();
         this.deviceReported = true;
     }
+
+
 }

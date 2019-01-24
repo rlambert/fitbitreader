@@ -4,12 +4,12 @@ import com.proclub.datareader.dao.User;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,37 +20,23 @@ import static org.junit.Assert.assertEquals;
 @RunWith(SpringRunner.class)
 @ActiveProfiles("unittest")
 @SpringBootTest
-@AutoConfigureTestDatabase
 public class UserServiceTests {
 
     @Autowired
     private UserService _service;
 
-    @Test
-    public void testTimestamps() {
-        // be careful, old Unix timestamps are sometimes SECONDS from Epoch
-        long ts = Instant.now().toEpochMilli();  // this is milliseconds
-        Instant inst1 = Instant.ofEpochMilli(ts);
-        long ts2 = 1468415789;  // a value from ProClub's DB, User table, ModifiedDateTime (int) column
-        Instant inst2 = Instant.ofEpochMilli(ts2);
-
-        long ts3 = 1468415789000L;  // multiply X 1000 to get a valid value in Millis
-        Instant inst3 = Instant.ofEpochMilli(ts2);
-        String dtstr = inst3.toString();
-        System.out.println(dtstr);
-    }
 
     @Test
     public void testCrud() {
 
-        int ts = (int) Instant.now().toEpochMilli();
+        int ts = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
 
         // User(UUID userGuid, int modifiedDateTime, int clientType, String email, String fkUserStore2020,
         // String fkUserStorePRO, String postalCode, String fkClientId) {
         User user1a = new User(TEST_USER_GUID1, ts, TEST_CLIENT_TYPE1, TEST_EMAIL1,
                 TEST_FKUSERTORE2020, TEST_FKUSERSTOREPRO, TEST_POSTAL_CODE1, TEST_FKCLIENTID1);
 
-        _service.createUser(user1a);
+        user1a = _service.createUser(user1a);
 
         Optional<User> optUser1 = _service.findById(TEST_USER_GUID1);
         assertTrue(optUser1.isPresent());

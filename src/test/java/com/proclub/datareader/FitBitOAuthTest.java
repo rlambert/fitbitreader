@@ -8,7 +8,6 @@ import com.github.scribejava.core.model.OAuthRequest;
 import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
-import org.junit.Test;
 
 public class FitBitOAuthTest {
 
@@ -20,7 +19,7 @@ public class FitBitOAuthTest {
      * This is not really a test; it is more of a demo
      * @throws Exception
      */
-    @Test
+    //@Test
     public void testOAuth2Flow() throws Exception {
 
         // Replace these with your client id and secret fron your app

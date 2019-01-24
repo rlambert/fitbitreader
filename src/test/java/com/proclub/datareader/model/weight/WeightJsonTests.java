@@ -21,7 +21,7 @@ public class WeightJsonTests {
         WeightData wtData = mapper.readValue(json, WeightData.class);
         assertNotNull(wtData);
 
-        SimpleTrack st = new SimpleTrack(wtData);
+        SimpleTrack st = new SimpleTrack(wtData.getWeight().get(0));
         assertNotNull(st);
 
         Weight wt = wtData.getWeight().get(0);

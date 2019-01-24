@@ -13,6 +13,7 @@ import com.proclub.datareader.model.activitylevel.ActivityLevelData;
 import com.proclub.datareader.model.security.OAuthCredentials;
 import com.proclub.datareader.model.sleep.Sleep;
 import com.proclub.datareader.model.sleep.SleepData;
+import com.proclub.datareader.model.steps.Steps;
 import com.proclub.datareader.model.steps.StepsData;
 import com.proclub.datareader.model.weight.Weight;
 import com.proclub.datareader.model.weight.WeightData;
@@ -420,8 +421,30 @@ public class FitBitDataService {
                 newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
             }
             // this will update an existing record if there is an ID
+            // or save as new if not
             _trackService.createSimpleTrack(newTracker);
         }
+        return sleepData;
+    }
+
+    /**
+     * helper to find a given Sleep instance in a list of
+     * DB results for Sleep data
+     * @param dbResults - List&lt;SimpleTrack&gt;
+     * @param steps - Steps
+     * @return Optional&lt;SimpleTrack&gt;
+     */
+    private Optional<SimpleTrack> findStepsMatch(Steps steps, List<SimpleTrack> dbResults) {
+        String dtStr = steps.getDateTime();
+        LocalDateTime dt = LocalDateTime.parse(dtStr);
+        ZoneOffset zos = ZoneOffset.ofHours(0);
+
+        for (SimpleTrack item : dbResults) {
+            if (item.getTrackDateTime() == dt.toEpochSecond(zos)) {
+                return Optional.of(item);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -435,19 +458,19 @@ public class FitBitDataService {
                 throws IOException, ExecutionException, InterruptedException {
 
         String dtStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        String baseUrl = _config.getFitbitWeightUrl().replace("${date}", dtStr);
+        String baseUrl = _config.getFitbitStepsUrl().replace("${date}", dtStr);
 
         SleepData sleep = (SleepData) makeApiRequest(SleepData.class, baseUrl, oauth, dt);
 
         // go back in time a configurable number of days
         LocalDateTime dtStart = dt.minusDays(_config.getFitbitStepsWindowDays());
         LocalDateTime dtEnd   = dt;
-        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.SLEEP);
-        SleepData dsleep = (StepsData) makeApiRequest(StepsData.class, baseUrl, oauth, dt);
-        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, baseUrl, oauth, dt);
-        for(Weight wt : apiResults.getWeight()) {
-            Optional<SimpleTrack> result = findMatch(dbResults, wt);
-            SimpleTrack newTracker = new SimpleTrack(wt);
+        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.STEPS);
+
+        StepsData apiResults = (StepsData) makeApiRequest(StepsData.class, baseUrl, oauth, dt);
+        for(Steps steps : apiResults.getSteps()) {
+            Optional<SimpleTrack> result = findStepsMatch(steps, dbResults);
+            SimpleTrack newTracker = new SimpleTrack(steps);
             if (result.isPresent()) {
                 SimpleTrack dbWt = result.get();
                 newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
@@ -627,9 +650,7 @@ public class FitBitDataService {
         if (!creds.isExpired()) {
             // we've valid got credentials, so let's fetch us some ActivityLevel data
             try {
-                List<ActivityLevel> aldata = getActivityLevels(dc, creds, dtNow);
-                //ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtNow, aldata);
-                //_activityLevelService.createActivityLevel(activityLevel);
+                getActivityLevels(dc, creds, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
@@ -638,15 +659,8 @@ public class FitBitDataService {
 
             // now fetch and save Sleep data
             try {
-                SleepData sleepData = getSleep(creds, dtNow);
-                if (sleepData.getSleep().size() > 0) {
-                    SimpleTrack sleepTrack = new SimpleTrack(sleepData);
-                    _trackService.createSimpleTrack(sleepTrack);
-                    _logger.info(StringUtils.formatMessage(String.format("SleepData saved for %s", dc.getFkUserGuid())));
-                }
-                else {
-                    _logger.info(StringUtils.formatMessage(String.format("No sleep data for user '%s' at this time.", dc.getFkUserGuid())));
-                }
+                getSleep(dc, creds, dtNow);
+                _logger.info(StringUtils.formatMessage(String.format("SleepData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Sleep data for user '%s'", dc.getFkUserGuid()), ex));
@@ -654,15 +668,8 @@ public class FitBitDataService {
 
             // fetch and save Steps data
             try {
-                StepsData stepsData = getSteps(creds, dtNow);
-                if (stepsData.getSteps().size() > 0) {
-                    SimpleTrack sleepTrack = new SimpleTrack(stepsData);
-                    _trackService.createSimpleTrack(sleepTrack);
-                    _logger.info(StringUtils.formatMessage(String.format("StepsData saved for %s", dc.getFkUserGuid())));
-                }
-                else {
-                    _logger.info(StringUtils.formatMessage(String.format("No Steps data for user '%s' at this time.", dc.getFkUserGuid())));
-                }
+                getSteps(dc, creds, dtNow);
+                _logger.info(StringUtils.formatMessage(String.format("StepsData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Steps data for user '%s'", dc.getFkUserGuid()), ex));
@@ -671,15 +678,8 @@ public class FitBitDataService {
 
             // fetch and save Weight data
             try {
-                WeightData wtData = getWeight(dc, creds, dtNow);
-                if (wtData.getWeight().size() > 0) {
-                    SimpleTrack wtTrack = new SimpleTrack(wtData);
-                    _trackService.createSimpleTrack(wtTrack);
-                    _logger.info(StringUtils.formatMessage(String.format("WeightData saved for %s", dc.getFkUserGuid())));
-                }
-                else {
-                    _logger.info(StringUtils.formatMessage(String.format("No Weight data for user '%s' at this time.", dc.getFkUserGuid())));
-                }
+                getWeight(dc, creds, dtNow);
+                _logger.info(StringUtils.formatMessage(String.format("WeightData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Weight data for user '%s'", dc.getFkUserGuid()), ex));

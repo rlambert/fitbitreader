@@ -3,6 +3,9 @@ package com.proclub.datareader.model.sleep;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+
 @Data
 @SuppressWarnings("unused")
 public class Sleep {
@@ -23,4 +26,21 @@ public class Sleep {
     private long timeInBed;
     private String type;
 
+    public LocalDateTime getStartTime() {
+        return LocalDateTime.parse(this.startTime);
+    }
+
+    public LocalDateTime getEndTime() {
+        return LocalDateTime.parse(this.endTime);
+    }
+
+    public long getStartTimeEpochSeconds() {
+        LocalDateTime dt = LocalDateTime.parse(this.startTime);
+        return dt.toEpochSecond(ZoneOffset.ofHours(0));
+    }
+
+    public long getEndTimeEpochSeconds() {
+        LocalDateTime dt = LocalDateTime.parse(this.endTime);
+        return dt.toEpochSecond(ZoneOffset.ofHours(0));
+    }
 }

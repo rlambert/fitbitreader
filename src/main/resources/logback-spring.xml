@@ -1,53 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration>
+<configuration scan="true" scanPeriod="30 seconds">
 
     <!-- Get the property for app name from the properties file -->
     <springProperty scope="context" name="appName" source="spring.application.name"/>
+    <property name="FOLDER_HOME" value="logs" />
 
-    <!-- Configuration when the profile is staging or prod -->
-    <springProfile name="staging,prod">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>logs/${appName}.log</file>
+    <springProfile name="test,staging,prod">
+        <appender name="FileLog" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${FOLDER_HOME}/${appName}.log</file>
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</Pattern>
+            </encoder>
+
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <!-- daily rollover -->
-                <fileNamePattern>logs/%d{yyyy-MM-dd,aux}/${appName}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-                <!-- keep 7 days' worth of history -->
-                <maxHistory>7</maxHistory>
-                <timeBasedFileNamingAndTriggeringPolicy
-                        class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                    <!-- or whenever the file size reaches 80MB -->
-                    <maxFileSize>20MB</maxFileSize>
+                <!-- rollover daily -->
+                <fileNamePattern>${FOLDER_HOME}/${appName}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                    <maxFileSize>100MB</maxFileSize>
                 </timeBasedFileNamingAndTriggeringPolicy>
             </rollingPolicy>
-            <encoder>
-                <pattern>%d %5p | %t | %-54logger{55} | %m %n</pattern>
-            </encoder>
         </appender>
-
-        <logger name="${appName}-logger">
-            <level value="INFO"/>
-        </logger>
-
-        <root>
-            <level value="INFO"/>
-            <appender-ref ref="FILE"/>
+        <root level="info">
+            <appender-ref ref="FileLog" />
         </root>
     </springProfile>
 
     <!-- Configuration when the profile is dev -->
-    <springProfile name="dev">
+    <springProfile name="unittest,dev">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
                 <!--<pattern>%d %5p | %t | %-55logger{55} | %m %n</pattern> -->
                 <pattern>%black(%d{ISO8601}) %highlight(%-5level) [%blue(%t)] %yellow(%C{1.}): %msg%n%t</pattern>
             </encoder>
-        </appender><springProperty scope="context" name="appName" source="spring.application.name"/>
+        </appender>
         <logger name="${appName}-logger">
-            <level value="INFO"/>
+            <level value="DEBUG"/>
         </logger>
         <root>
-            <level value="INFO"/>
+            <level value="DEBUG"/>
             <appender-ref ref="CONSOLE"/>
         </root>
     </springProfile>
+
 </configuration>

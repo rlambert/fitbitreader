@@ -19,8 +19,8 @@ public class TestConstants {
     public static final String TEST_FKUSERSTOREPRO = "fkUserStorePRO";
     public static final String TEST_POSTAL_CODE1 = "98801";
     public static final String TEST_POSTAL_CODE2 = "98802";
-    public static final String TEST_FKCLIENTID1 = "TestClientId1";
-    public static final String TEST_FKCLIENTID2 = "TestClientId2";
+    public static final String TEST_FKCLIENTID1 = UUID.randomUUID().toString();
+    public static final String TEST_FKCLIENTID2 = UUID.randomUUID().toString();
     public static final int TEST_CLIENT_TYPE1   = 1;
     public static final int TEST_CLIENT_TYPE2   = 2;
 

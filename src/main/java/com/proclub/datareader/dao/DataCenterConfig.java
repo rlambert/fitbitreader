@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Entity
@@ -154,7 +155,7 @@ public class DataCenterConfig {
                             String statusText, int dataStatus, String credentials, Instant modified) {
         this.fkUserGuid = fkUserGuid;
         this.sourceSystem = sourceSystem;
-        this.lastChecked = lastChecked;
+        this.lastChecked = lastChecked.truncatedTo(ChronoUnit.SECONDS);
         this.panelDisplay = panelDisplay;
         this.status = status;
         this.statusText = statusText;

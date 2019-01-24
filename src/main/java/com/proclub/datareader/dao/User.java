@@ -7,7 +7,7 @@ import java.util.UUID;
 
 @Data
 @Entity
-@Table(name="User")
+@Table(name="Users", schema="dbo")
 public class User {
 
     @Id

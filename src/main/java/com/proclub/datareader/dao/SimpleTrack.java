@@ -3,18 +3,13 @@ package com.proclub.datareader.dao;
 import com.proclub.datareader.model.sleep.Sleep;
 import com.proclub.datareader.model.sleep.SleepData;
 import com.proclub.datareader.model.steps.Steps;
-import com.proclub.datareader.model.steps.StepsData;
 import com.proclub.datareader.model.weight.Weight;
-import com.proclub.datareader.model.weight.WeightData;
 import lombok.Data;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.UUID;
 
 @Entity
@@ -246,71 +241,56 @@ public class SimpleTrack {
             this.valDec = (int) (sleep.getMinutesAsleep()/60);
 
             // ProClub keeps time in seconds since Epoch
-            this.valTime = (int) (Instant.parse(sleep.getStartTime()).toEpochMilli()/1000);
-            this.valTime2 = (int) (Instant.parse(sleep.getEndTime()).toEpochMilli()/1000);
+            this.valTime = (int) sleep.getStartTimeEpochSeconds();
+            this.valTime2 = (int) sleep.getEndTimeEpochSeconds();
         }
-        this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
+        this.valInt2 = (int) sleepData.getSummary().getStages().getWake();
     }
 
+    /**
+     * ctor for Sleep data
+     * @param sleep - Sleep
+     */
     public SimpleTrack(Sleep sleep) {
         this.entityType = Entity.SLEEP.entityValue;
         this.simpleTrackGuid = UUID.randomUUID();
-        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+        this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
         this.valInt = (int) sleep.getMinutesToFallAsleep();
         this.valDec = (int) (sleep.getMinutesAsleep()/60);
 
         // ProClub keeps time in seconds since Epoch
-        this.valTime = (int) (Instant.parse(sleep.getStartTime()).toEpochMilli()/1000);
-        this.valTime2 = (int) (Instant.parse(sleep.getEndTime()).toEpochMilli()/1000);
-        this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
+        this.valTime = (int) sleep.getStartTimeEpochSeconds();
+        this.valTime2 = (int) sleep.getEndTimeEpochSeconds();
+        //this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
     }
 
     /**
      * ctor for Steps data
-     * @param stepsData - StepsData
+     * @param steps - Steps
      */
-    public SimpleTrack (StepsData stepsData) {
+    public SimpleTrack (Steps steps) {
         this.entityType = Entity.STEPS.entityValue;
         this.simpleTrackGuid = UUID.randomUUID();
-        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+        this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
 
-        // we are assuming one day of data!
-        if (stepsData.getSteps().size() > 0) {
-            Steps steps = stepsData.getSteps().get(0);
-            String dtStr = steps.getDateTime();   // YYYY-MM-DD
-            //         String dtStr = "2018-12-11T00:00:00.00Z";
-            if (!dtStr.contains(":")) {
-                dtStr += "T00:00:00.00Z";
-            }
-            Instant dtTrack = Instant.parse(dtStr);
-            this.trackDateTime = (int) dtTrack.toEpochMilli()/1000;
-            this.valInt = (int) steps.getValue();
+        String dtStr = steps.getDateTime();   // YYYY-MM-DD
+        //         String dtStr = "2018-12-11T00:00:00.00Z";
+        if (!dtStr.contains(":")) {
+              dtStr += "T00:00:00.00Z";
         }
-        else {
-            throw new IllegalArgumentException("No step data present in stepsData.");
-        }
+        Instant dtTrack = Instant.parse(dtStr);
+        this.trackDateTime = (int) dtTrack.toEpochMilli()/1000;
+        this.valInt = (int) steps.getValue();
     }
 
     /**
      * constructor for weight data
-     * @param wtdata - WeightData
+     * @param wt - Weight
      */
-    public SimpleTrack(WeightData wtdata) {
-        this.entityType = Entity.WEIGHT.entityValue;
-        this.simpleTrackGuid = UUID.randomUUID();
-        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
-        if (wtdata.getWeight().size() == 0) {
-            throw new IllegalArgumentException("There is no weight data in the result.");
-        }
-        Weight wt = wtdata.getWeight().get(0);
-        this.valDec = wt.getWeight();
-        this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);
-    }
-
     public SimpleTrack(Weight wt) {
         this.entityType = Entity.WEIGHT.entityValue;
         this.simpleTrackGuid = UUID.randomUUID();
-        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
+        this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
         this.valDec = wt.getWeight();
         this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);
     }
