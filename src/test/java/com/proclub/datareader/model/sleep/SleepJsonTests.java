@@ -18,7 +18,7 @@ public class SleepJsonTests {
         SleepData sleepData = mapper.readValue(json, SleepData.class);
         assertNotNull(sleepData);
 
-        SimpleTrack st = new SimpleTrack(sleepData);
+        SimpleTrack st = new SimpleTrack(sleepData.getSleep().get(0));
         assertNotNull(st);
     }
 }

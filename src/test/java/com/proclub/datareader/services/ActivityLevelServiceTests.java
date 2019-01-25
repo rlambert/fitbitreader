@@ -1,6 +1,7 @@
 package com.proclub.datareader.services;
 
 import com.proclub.datareader.dao.ActivityLevel;
+import com.proclub.datareader.dao.User;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
@@ -32,12 +34,15 @@ public class ActivityLevelServiceTests {
     private ActivityLevelService _service;
 
     @Autowired
+    private UserService _userService;
+
+    @Autowired
     JdbcTemplate jdbcTemplate;
 
 
     @Test
     public void testConnection() {
-        Collection<Map<String, Object>> rows = jdbcTemplate.queryForList("select * from dbo.Users;");
+        Collection<Map<String, Object>> rows = jdbcTemplate.queryForList("select * from dbo.ActivityLevel;");
         assertNotNull(rows);
     }
 
@@ -46,6 +51,21 @@ public class ActivityLevelServiceTests {
 
         LocalDateTime trackDt = LocalDateTime.now().minus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
         LocalDateTime modifiedDt = LocalDateTime.now();
+
+        /*
+            We need to create these users so that the FK relationship works
+         */
+        int ts = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
+
+        User user1 = new User(/*TEST_USER_GUID1,*/ ts, TEST_CLIENT_TYPE1, TEST_EMAIL1,
+                TEST_FKUSERTORE2020, TEST_FKUSERSTOREPRO, TEST_POSTAL_CODE1, TEST_FKCLIENTID1);
+
+        user1 = _userService.createUser(user1);
+
+        User user2 = new User(/*TEST_USER_GUID2, */ ts, TEST_CLIENT_TYPE2, TEST_EMAIL2,
+                TEST_FKUSERTORE2020, TEST_FKUSERSTOREPRO, TEST_POSTAL_CODE2, TEST_FKCLIENTID2);
+
+        user2 = _userService.createUser(user2);
 
         /*
             public ActivityLevel(UUID fkUserGuid, Instant modifiedDateTime, Instant trackDateTime, int fairlyActiveMinutes,
@@ -96,6 +116,9 @@ public class ActivityLevelServiceTests {
         }
         count = _service.count();
         assertEquals(0, count);
+
+        _userService.deleteUser(user1);
+        _userService.deleteUser(user2);
 
     }
 }

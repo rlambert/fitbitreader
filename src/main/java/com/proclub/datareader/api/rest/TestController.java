@@ -22,10 +22,13 @@ import com.github.scribejava.core.oauth.OAuth20Service;
 import com.proclub.datareader.api.ApiBase;
 import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.*;
+import com.proclub.datareader.model.security.OAuthCredentials;
 import com.proclub.datareader.services.*;
+import com.proclub.datareader.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
@@ -33,9 +36,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 
@@ -47,6 +49,7 @@ public class TestController extends ApiBase {
 
     private static Logger _logger = LoggerFactory.getLogger(TestController.class);
 
+
     private AppConfig _config;                          // app configuration instance
     private UserService _userService;                   // our service to fetch user data
     private DataCenterConfigService _dcService;         // get DataCenterConfig table
@@ -54,10 +57,15 @@ public class TestController extends ApiBase {
     private SimpleTrackService _trackService;           // get/put SimpleTrack table data
     private ClientService _clientService;               // gets Client table data
     private EmailService _emailService;                 // centralized email code
+    private FitBitDataService _fitbitService;           // fitbit API service
+
+    private JdbcTemplate _jdbcTemplate;
+
 
     public TestController(AppConfig config, UserService userService, DataCenterConfigService dcService,
                           ActivityLevelService activityLevelService, SimpleTrackService trackService,
-                          ClientService clientService, EmailService emailService) {
+                          ClientService clientService, EmailService emailService, FitBitDataService fitBitDataService,
+                          JdbcTemplate jdbcTemplate) {
         _config = config;
         _userService = userService;
         _dcService = dcService;
@@ -65,6 +73,8 @@ public class TestController extends ApiBase {
         _trackService = trackService;
         _clientService = clientService;
         _emailService = emailService;
+        _fitbitService = fitBitDataService;
+        _jdbcTemplate = jdbcTemplate;
     }
 
 
@@ -142,7 +152,7 @@ public class TestController extends ApiBase {
             inputPwd.setValueAttribute("RockNRollIn2019!");
 
             //get the enclosing form
-            HtmlForm loginForm = inputPwd.getEnclosingForm() ;
+            HtmlForm loginForm = inputPwd.getEnclosingForm();
 
             //submit the form
             client.getOptions().setJavaScriptEnabled(true);
@@ -163,14 +173,14 @@ public class TestController extends ApiBase {
 
             System.out.println("-------------------------");
             System.out.println(page.asXml());
-        }
-        catch(Exception ex){
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
     /**
      * helper method to make sure this API is only available via localhost
+     *
      * @param req - HttpServletRequest
      * @throws HttpClientErrorException
      */
@@ -181,7 +191,7 @@ public class TestController extends ApiBase {
     }
 
     @GetMapping(value = {"test/full/{days:[\\d]+}"}, produces = "text/html")
-    public String runTest(@PathVariable int days,  HttpServletRequest req) throws HttpClientErrorException {
+    public String runTest(@PathVariable int days, HttpServletRequest req) throws HttpClientErrorException {
         checkHost(req);
 
         return "OK";
@@ -204,24 +214,28 @@ public class TestController extends ApiBase {
     @GetMapping(value = {"test/db/datacenterconfig/{id}/{system}"}, produces = "application/json")
     public DataCenterConfig runDbTestDc(@PathVariable UUID id, @PathVariable int system, HttpServletRequest req) throws IOException {
         checkHost(req);
-        DataCenterConfig.Pkey key = new DataCenterConfig.Pkey(id, system);
-        Optional<DataCenterConfig> opt = _dcService.findById(key);
+        Optional<DataCenterConfig> opt = _dcService.findById(id, system);
         if (!opt.isPresent()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"DataCenterConfig ID: %s - %s does not exist.\"}", id, system));
-        }
-        else {
+        } else {
             return opt.get();
         }
     }
 
+    @GetMapping(value = {"test/db/datacenterconfig/active"}, produces = "application/json")
+    public List<DataCenterConfig> runDbTestActiveDc(HttpServletRequest req) throws IOException {
+        checkHost(req);
+        return _dcService.findAllFitbitActive();
+    }
+
+
     @GetMapping(value = {"test/db/user/{id}"}, produces = "application/json")
     public User runDbTestUser(@PathVariable String id, HttpServletRequest req) throws IOException {
         checkHost(req);
-        Optional<User> opt = _userService.findById(UUID.fromString(id));
+        Optional<User> opt = _userService.findById(id);
         if (!opt.isPresent()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"User %s does not exist.\"}", id));
-        }
-        else {
+        } else {
             return opt.get();
         }
     }
@@ -241,8 +255,7 @@ public class TestController extends ApiBase {
         Optional<ActivityLevel> opt = _activityLevelService.findById(id);
         if (!opt.isPresent()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"ActivityLevel ID: %s does not exist.\"}", id));
-        }
-        else {
+        } else {
             return opt.get();
         }
     }
@@ -253,8 +266,7 @@ public class TestController extends ApiBase {
         Optional<Client> opt = _clientService.findById(id);
         if (!opt.isPresent()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"Client ID: %s does not exist.\"}", id));
-        }
-        else {
+        } else {
             return opt.get();
         }
     }
@@ -265,11 +277,70 @@ public class TestController extends ApiBase {
         Optional<SimpleTrack> opt = _trackService.findById(id);
         if (!opt.isPresent()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"SimpleTrack ID: %s does not exist.\"}", id));
-        }
-        else {
+        } else {
             return opt.get();
         }
     }
 
+
+    @GetMapping(value = {"test/db/datacenterconfig/template/{top}"}, produces = "application/json")
+    public Collection<Map<String, Object>> testDcTemplate(@PathVariable int top, HttpServletRequest req) {
+        checkHost(req);
+        Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from DataCenterConfig order by LastChecked desc;", top));
+        return rows;
+    }
+
+    @GetMapping(value = {"test/db/user/template/{top}"}, produces = "application/json")
+    public Collection<Map<String, Object>> testUserTemplate(@PathVariable int top, HttpServletRequest req) {
+        checkHost(req);
+        Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from Users order by ModifiedDateTime desc;", top));
+        return rows;
+    }
+
+    @GetMapping(value = {"test/db/activitylevel/template/{top}"}, produces = "application/json")
+    public Collection<Map<String, Object>> testActivityLevelTemplate(@PathVariable int top, HttpServletRequest req) {
+        checkHost(req);
+        Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from ActivityLevel order by TrackDatetime desc;", top));
+        return rows;
+    }
+
+    @GetMapping(value = {"test/db/simpletrack/template/{top}"}, produces = "application/json")
+    public Collection<Map<String, Object>> testSimpleTrackTemplate(@PathVariable int top, HttpServletRequest req) {
+        checkHost(req);
+        Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from SimpleTrack order by TrackDatetime desc;", top));
+        return rows;
+    }
+
+    @GetMapping(value = {"test/db/client/template/{top}"}, produces = "application/json")
+    public Collection<Map<String, Object>> testClientTemplate(@PathVariable int top, HttpServletRequest req) {
+        checkHost(req);
+        Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from Client order by Lname asc;;", top));
+        return rows;
+    }
+
+    @GetMapping(value = {"test/oauth2"}, produces = "application/json")
+    public Map<UUID, String> testLogins() {
+        List<DataCenterConfig> subs = _dcService.findAll();
+        LocalDateTime dtNow = LocalDateTime.now();
+        Map<UUID, String> credsMap = new HashMap<>();
+
+        for(DataCenterConfig dc : subs) {
+            try {
+                Optional<OAuthCredentials> optCreds = _fitbitService.getCredentials(dc, dtNow);
+                if (optCreds.isPresent()) {
+                    OAuthCredentials creds = optCreds.get();
+                    boolean valid = !creds.isExpired();
+                    credsMap.put(dc.getFkUserGuid(), String.format("UserId: %s, OAuth2 access token still valid: %s", dc.getFkUserGuid(), valid));
+                }
+                else {
+                    credsMap.put(dc.getFkUserGuid(), String.format("UserId: %s, OAuth2 credentials not available", dc.getFkUserGuid()));
+                }
+            }
+            catch (IOException ex) {
+                _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
+            }
+        }
+        return credsMap;
+    }
 
 }

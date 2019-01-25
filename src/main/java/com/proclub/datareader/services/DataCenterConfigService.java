@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class DataCenterConfigService {
@@ -50,10 +51,15 @@ Modified datetime NOT NULL
         _repo.delete(dc);
     }
 
-    public void deleteDataCenterConfigById(DataCenterConfig.Pkey id) { _repo.deleteById(id);}
 
-    public Optional<DataCenterConfig> findById(DataCenterConfig.Pkey id) {
-        return _repo.findById(id);
+    public Optional<DataCenterConfig> findById(UUID id, int sourceSystem) {
+        List<DataCenterConfig> rows = _repo.findAllByFkUserGuidAndSourceSystem(id, sourceSystem);
+        if (rows.size() > 0) {
+            return Optional.of(rows.get(0));
+        }
+        else {
+            return Optional.empty();
+        }
     }
 
     public long count() {
@@ -85,7 +91,8 @@ Modified datetime NOT NULL
     public List<DataCenterConfig> findAllFitbitActive() {
         int status = DataCenterConfig.PartnerStatus.Active.status;
         int sourceSystem = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
-        return _repo.findAllByStatusAndSourceSystem(status, sourceSystem);
+        List<DataCenterConfig> rows = _repo.findAllByStatusAndSourceSystem(status, sourceSystem);
+        return rows;
     }
 
 }

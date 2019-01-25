@@ -67,7 +67,7 @@ public class SimpleTrackService {
     public List<SimpleTrack> findByUserTrackDateRange(UUID userId, LocalDateTime dtStart, LocalDateTime dtEnd,
                                                        SimpleTrack.Entity etype) {
         // we get to assume FitBit as the source system for this app
-        short src = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
+        int src = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
         return _repo.findByTrackDateTimeBetweenAndFkUserGuidAndSourceSystemAndEntityTypeOrderByTrackDateTime(
                             dtStart, dtEnd, userId, src, etype.entityValue);
     }

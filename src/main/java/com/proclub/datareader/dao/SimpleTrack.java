@@ -1,18 +1,16 @@
 package com.proclub.datareader.dao;
 
 import com.proclub.datareader.model.sleep.Sleep;
-import com.proclub.datareader.model.sleep.SleepData;
 import com.proclub.datareader.model.steps.Steps;
 import com.proclub.datareader.model.weight.Weight;
 import lombok.Data;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.time.*;
 import java.util.UUID;
 
 @Entity
+@Table(name="SimpleTrack",schema="dbo")
 @Data
 public class SimpleTrack {
 
@@ -25,10 +23,10 @@ public class SimpleTrack {
         DeletedInSync(3),
         InSync(4);
         
-        public short syncStatus;
+        public int syncStatus;
         
         private SyncStatus(int status) {
-            this.syncStatus = (short) status;
+            this.syncStatus = (int) status;
         }
     }
     
@@ -77,46 +75,47 @@ public class SimpleTrack {
     }
     
     public enum Entity {
-        NULL((short) -1),
-        WEIGHT((short) 0),
-        STEPS((short) 1),
-        SLEEP((short) 2),
-        MOOD((short) 3),
-        WATER((short) 4),
-        SUPLEMENTS((short) 5);
+        NULL((int) -1),
+        WEIGHT((int) 0),
+        STEPS((int) 1),
+        SLEEP((int) 2),
+        MOOD((int) 3),
+        WATER((int) 4),
+        SUPLEMENTS((int) 5);
 
-        public short entityValue;
+        public int entityValue;
 
-        Entity (short eval) {
+        Entity (int eval) {
             this.entityValue = eval;
         }
     }
 
     public enum SourceSystem
     {
-        NULL((short) -1),
-        WEBTRACKER((short) 0),
-        IPHONE((short) 1),
-        WINPHONE((short) 2),
-        HEALTHVAULT((short) 3),
-        GADGET((short) 4),
-        PROCENTRAL((short) 5),
-        ADMIN((short) 6),
-        OTHER((short) 7),
-        FITBIT((short) 8),
-        NETPULSE((short) 9),
-        GARMIN((short) 10),
-        NIKE((short) 11);
+        NULL((int) -1),
+        WEBTRACKER((int) 0),
+        IPHONE((int) 1),
+        WINPHONE((int) 2),
+        HEALTHVAULT((int) 3),
+        GADGET((int) 4),
+        PROCENTRAL((int) 5),
+        ADMIN((int) 6),
+        OTHER((int) 7),
+        FITBIT((int) 8),
+        NETPULSE((int) 9),
+        GARMIN((int) 10),
+        NIKE((int) 11);
 
-        public short sourceSystem;
-        private SourceSystem(short src) {
+        public int sourceSystem;
+        private SourceSystem(int src) {
             this.sourceSystem = src;
         }
     }
 
     @Id
+    @GeneratedValue
     @Column(name = "SimpleTrackGuid")
-    private UUID simpleTrackGuid = NullValue.Guid;
+    private UUID simpleTrackGuid;       // = NullValue.Guid;
 
     @Column(name = "fkUserGuid")
     private UUID fkUserGuid = NullValue.Guid;
@@ -125,7 +124,7 @@ public class SimpleTrack {
     private int fkProviderId = NullValue.Int;
 
     @Column(name = "SourceSystem")
-    private int sourceSystem = SourceSystem.NULL.sourceSystem;
+    private int sourceSystem; // = SourceSystem.NULL.sourceSystem;
 
     @Column(name = "ModifiedDateTime")
     private int modifiedDateTime = (int) NullValue.DateTimeUtc.toEpochSecond();
@@ -134,10 +133,10 @@ public class SimpleTrack {
     private int trackDateTime = (int) NullValue.DateTimeUtc.toEpochSecond();
 
     @Column(name = "EntityType")
-    private short entityType = Entity.NULL.entityValue;
+    private int entityType;  // = Entity.NULL.entityValue;
 
     @Column(name = "ValTinyInt")
-    private short valTinyInt = NullValue.Byte; // default
+    private int valTinyInt; // = NullValue.Byte; // default
 
     @Column(name = "ValInt")
     private int valInt = NullValue.Int;    // default
@@ -149,7 +148,7 @@ public class SimpleTrack {
     private String valStr = NullValue.String;
 
     @Column(name = "Sync")
-    private short sync = SyncStatus.Null.syncStatus;
+    private int sync; // = SyncStatus.Null.syncStatus;
 
     @Column(name = "ValInt2")
     private int valInt2;
@@ -205,10 +204,31 @@ public class SimpleTrack {
      * @param deviceReported
      */
     public SimpleTrack(UUID simpleTrackGuid, UUID fkUserGuid, int fkProviderId, int sourceSystem,
-                       Instant modifiedDateTime, Instant trackDateTime, short entityType, short valTinyInt,
-                       short valInt, double valDec, String valStr, short sync, short valInt2, int valTime,
-                       int valTime2, byte deviceReported) {
+                            Instant modifiedDateTime, Instant trackDateTime, int entityType, int valTinyInt,
+                            int valInt, double valDec, String valStr, int sync, int valInt2, int valTime,
+                            int valTime2, byte deviceReported) {
         this.simpleTrackGuid = simpleTrackGuid;
+        this.fkUserGuid = fkUserGuid;
+        this.fkProviderId = fkProviderId;
+        this.sourceSystem = sourceSystem;
+        this.modifiedDateTime = (int) modifiedDateTime.toEpochMilli()/1000;
+        this.trackDateTime = (int) trackDateTime.toEpochMilli()/1000;
+        this.entityType = entityType;
+        this.valTinyInt = valTinyInt;
+        this.valInt = valInt;
+        this.valDec = valDec;
+        this.valStr = valStr;
+        this.sync = sync;
+        this.valInt2 = valInt2;
+        this.valTime = valTime;
+        this.valTime2 = valTime2;
+        this.deviceReported = deviceReported;
+    }
+
+    public SimpleTrack(UUID fkUserGuid, int fkProviderId, int sourceSystem,
+                       Instant modifiedDateTime, Instant trackDateTime, int entityType, int valTinyInt,
+                       int valInt, double valDec, String valStr, int sync, int valInt2, int valTime,
+                       int valTime2, byte deviceReported) {
         this.fkUserGuid = fkUserGuid;
         this.fkProviderId = fkProviderId;
         this.sourceSystem = sourceSystem;
@@ -228,27 +248,6 @@ public class SimpleTrack {
 
     /**
      * ctor for Sleep data
-     * @param sleepData - SleepData
-     */
-    public SimpleTrack (SleepData sleepData) {
-        this.entityType = Entity.SLEEP.entityValue;
-        this.simpleTrackGuid = UUID.randomUUID();
-        this.modifiedDateTime = (int) Instant.now().toEpochMilli()/1000;
-
-        if (sleepData.getSleep().size() > 0) {
-            Sleep sleep = sleepData.getSleep().get(0);
-            this.valInt = (int) sleep.getMinutesToFallAsleep();
-            this.valDec = (int) (sleep.getMinutesAsleep()/60);
-
-            // ProClub keeps time in seconds since Epoch
-            this.valTime = (int) sleep.getStartTimeEpochSeconds();
-            this.valTime2 = (int) sleep.getEndTimeEpochSeconds();
-        }
-        this.valInt2 = (int) sleepData.getSummary().getStages().getWake();
-    }
-
-    /**
-     * ctor for Sleep data
      * @param sleep - Sleep
      */
     public SimpleTrack(Sleep sleep) {
@@ -261,7 +260,7 @@ public class SimpleTrack {
         // ProClub keeps time in seconds since Epoch
         this.valTime = (int) sleep.getStartTimeEpochSeconds();
         this.valTime2 = (int) sleep.getEndTimeEpochSeconds();
-        //this.valInt2 = (int) sleepData.getSummary().getWake().getCount();
+        this.valInt2 = (int) sleep.getLevels().getSummary().getWake().getCount();
     }
 
     /**

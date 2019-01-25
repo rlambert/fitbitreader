@@ -11,13 +11,28 @@ import java.util.UUID;
 public class User {
 
     @Id
-    private UUID userGuid;
+    @Column(name = "UserGuid")
+    private String userGuid = UUID.randomUUID().toString();
+
+    @Column(name = "ModifiedDateTime")
     private int modifiedDateTime;
+
+    @Column(name = "ClientType")
     private int clientType;
+
+    @Column(name = "Email")
     private String email;
+
+    @Column(name = "fkUserStore2020")
     private String fkUserStore2020;
+
+    @Column(name = "fkUserStorePRO")
     private String fkUserStorePRO;
+
+    @Column(name = "PostalCode")
     private String postalCode;
+
+    @Column(name = "fkClientId")
     private String fkClientId;
 
     @Transient
@@ -36,6 +51,7 @@ public class User {
 
     public User() {}
 
+    /*
     public User(UUID userGuid, int modifiedDateTime, int clientType, String email, String fkUserStore2020, String fkUserStorePRO, String postalCode, String fkClientId) {
         this.userGuid = userGuid;
         this.modifiedDateTime = modifiedDateTime;
@@ -46,5 +62,15 @@ public class User {
         this.postalCode = postalCode;
         this.fkClientId = fkClientId;
     }
+    */
 
+    public User(int modifiedDateTime, int clientType, String email, String fkUserStore2020, String fkUserStorePRO, String postalCode, String fkClientId) {
+        this.modifiedDateTime = modifiedDateTime;
+        this.clientType = clientType;
+        this.email = email;
+        this.fkUserStore2020 = fkUserStore2020;
+        this.fkUserStorePRO = fkUserStorePRO;
+        this.postalCode = postalCode;
+        this.fkClientId = fkClientId;
+    }
 }

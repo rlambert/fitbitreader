@@ -45,7 +45,7 @@ public class PollerTask {
     // @Scheduled(cron = "[Seconds] [Minutes] [Hours] [Day of month] [Month] [Day of week] [Year]")
     @Scheduled(cron = "${app.pollcron}")
     public void dataSourcePoller() {
-        if (!_config.isUnittest()) {
+        if ((!_config.isUnittest()) && (_config.isPollEnabled())) {
             LocalDateTime dt = LocalDateTime.now();
             _logger.info("*** Poller Task Started ****");
             _logger.info(dt.toString());

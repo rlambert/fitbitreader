@@ -1,19 +1,21 @@
 package com.proclub.datareader.services;
 
 import com.proclub.datareader.dao.User;
+import com.proclub.datareader.dao.UserRowMapper;
 import com.proclub.datareader.repositories.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class UserService {
 
     private UserRepo _repo;
-
+    private JdbcTemplate _jdbcTemplate;
+    private UserRowMapper _mapper = new UserRowMapper();
 
     /**
      * ctor
@@ -21,8 +23,9 @@ public class UserService {
      * @param repo - UserRepo
      */
     @Autowired
-    public UserService(UserRepo repo) {
+    public UserService(UserRepo repo, JdbcTemplate jdbcTemplate) {
         _repo = repo;
+        _jdbcTemplate = jdbcTemplate;
     }
 
     public User createUser(User user) {
@@ -37,8 +40,23 @@ public class UserService {
         _repo.delete(user);
     }
 
-    public Optional<User> findById(UUID id) {
+
+    public Optional<User> findById(String id) {
         return _repo.findById(id);
+        /*
+        try {
+            String guid = id.toString().toUpperCase();
+            User user = (User) _jdbcTemplate.queryForObject(String.format("select * from Users where UserGuid = '%s'", guid), _mapper);
+            if (user != null) {
+                return Optional.of(user);
+            } else {
+                return Optional.empty();
+            }
+        }
+        catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+        */
     }
 
     public long count() {

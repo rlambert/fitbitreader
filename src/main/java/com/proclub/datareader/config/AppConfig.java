@@ -36,6 +36,7 @@ public class AppConfig {
     private int fitbitWeightWindowDays;
     private int fitbitStepsWindowDays;
 
+    private boolean pollEnabled;
     private String pollCron;
     private boolean fitbitSendAuthEmail;
     private boolean unittest;

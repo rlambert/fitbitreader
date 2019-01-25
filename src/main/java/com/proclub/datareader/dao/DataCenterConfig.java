@@ -7,15 +7,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.persistence.*;
 import java.io.IOException;
-import java.io.Serializable;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+import static javax.persistence.GenerationType.IDENTITY;
+
 @Entity
-@IdClass(DataCenterConfig.Pkey.class)
-@Table(name="DataCenterConfig")
+//@IdClass(DataCenterConfig.Pkey.class)
+@Table(name="DataCenterConfig", schema="dbo")
 @Data
 public class DataCenterConfig {
 
@@ -67,6 +67,7 @@ public class DataCenterConfig {
 
     }
 
+    /*
     @Data
     public static class Pkey implements Serializable {
         private UUID fkUserGuid;
@@ -79,11 +80,16 @@ public class DataCenterConfig {
             this.sourceSystem = sourceSystem;
         }
     }
+    */
 
     @Id
+    @GeneratedValue(strategy = IDENTITY)
+    @Column(name="id")
+    private int id;
+
+    @Column(name="fkUserGuid")
     private UUID fkUserGuid;
 
-    @Id
     @Column(name="SourceSystem")
     private int sourceSystem;
 
@@ -106,7 +112,7 @@ public class DataCenterConfig {
     private String credentials;
 
     @Column(name="Modified")
-    private Instant modified;
+    private LocalDateTime modified;
 
     @Transient
     private OAuthCredentials oAuthCredentials;
@@ -152,7 +158,7 @@ public class DataCenterConfig {
      * @param modified
      */
     public DataCenterConfig(UUID fkUserGuid, int sourceSystem, LocalDateTime lastChecked, int panelDisplay, int status,
-                            String statusText, int dataStatus, String credentials, Instant modified) {
+                            String statusText, int dataStatus, String credentials, LocalDateTime modified) {
         this.fkUserGuid = fkUserGuid;
         this.sourceSystem = sourceSystem;
         this.lastChecked = lastChecked.truncatedTo(ChronoUnit.SECONDS);
@@ -161,6 +167,6 @@ public class DataCenterConfig {
         this.statusText = statusText;
         this.dataStatus = dataStatus;
         this.credentials = credentials;
-        this.modified = modified;
+        this.modified = modified.truncatedTo(ChronoUnit.SECONDS);
     }
 }

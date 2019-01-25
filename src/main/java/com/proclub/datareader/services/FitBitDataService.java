@@ -18,6 +18,7 @@ import com.proclub.datareader.model.steps.StepsData;
 import com.proclub.datareader.model.weight.Weight;
 import com.proclub.datareader.model.weight.WeightData;
 import com.proclub.datareader.utils.StringUtils;
+import lombok.Data;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -41,6 +42,19 @@ import java.util.concurrent.ExecutionException;
 public class FitBitDataService {
 
     // ----------------------------- static class data
+
+    @Data
+    private static class DynaUrl {
+        private String url;
+        private LocalDateTime startDate;
+        private LocalDateTime endDate;
+
+        DynaUrl(String url, LocalDateTime dtStart, LocalDateTime dtEnd) {
+            this.url = url;
+            this.startDate = dtStart;
+            this.endDate = dtEnd;
+        }
+    }
 
     private static Logger _logger = LoggerFactory.getLogger(FitBitDataService.class);
 
@@ -314,6 +328,29 @@ public class FitBitDataService {
         return apiResults;
     }
 
+
+    /**
+     * helper method to centralize URL creation for sleep,
+     * steps, and weight.
+     * @param baseUrl - LocalDateTime
+     * @param dt - LocalDateTime
+     * @param windowDays - int
+     * @return DynaUrl
+     */
+    private DynaUrl prepUrl(String baseUrl, LocalDateTime dt, int windowDays) {
+        LocalDateTime dtStart = dt.minusDays(windowDays);
+        LocalDateTime dtEnd   = dt.plusDays(1);
+        LocalDateTime dtLoop  = dtStart;
+
+        // get all API data for our date-range
+        String dtStartStr = dtStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String dtEndStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));         // original date is end of range
+
+        // https://api.fitbit.com/1.2/user/-/xxxx/date/${startDate}/${endDate}.json
+        String resultUrl = baseUrl.replace("${startDate}", dtStartStr).replace("${endDate}", dtEndStr);
+        return new DynaUrl(resultUrl, dtStart, dtEnd);
+    }
+
     /**
      * helper to find a given Weight instance in a list of
      * DB results for Weight
@@ -345,16 +382,11 @@ public class FitBitDataService {
      * @throws IOException - if FitBit.com API is down
      */
     public WeightData getWeight(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
-        String dtStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        // the URL already has the date range embedded into the URL
-        String baseUrl = _config.getFitbitWeightUrl().replace("${date}", dtStr);
+        DynaUrl urlInfo = prepUrl(_config.getFitbitWeightUrl(), dt, _config.getFitbitWeightWindowDays());
+        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, urlInfo.getUrl(), oauth, dt);
 
-        // go back in time a configurable number of days
-        LocalDateTime dtStart = dt.minusDays(_config.getFitbitWeightWindowDays());
-        LocalDateTime dtEnd   = dt;
-        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.WEIGHT);
+        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.WEIGHT);
 
-        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, baseUrl, oauth, dt);
         for(Weight wt : apiResults.getWeight()) {
             Optional<SimpleTrack> result = findWeightMatch(wt, dbResults);
             SimpleTrack newTracker = new SimpleTrack(wt);
@@ -398,20 +430,11 @@ public class FitBitDataService {
      */
     public SleepData getSleep(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
 
-        LocalDateTime dtStart = dt.minusDays(_config.getFitbitSleepWindowDays());
-        LocalDateTime dtEnd   = dt.plusDays(1);
-        LocalDateTime dtLoop  = dtStart;
-
-        // get all API data for our date-range
-        String dtStartStr = dtStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        String dtEndStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));         // original date is end of range
-
-        // https://api.fitbit.com/1.2/user/-/sleep/date/${startDate}/${endDate}.json
-        String baseUrl = _config.getFitbitSleepUrl().replace("${startDate}", dtStartStr).replace("${endDate}", dtEndStr);
-        SleepData sleepData = (SleepData) makeApiRequest(SleepData.class, baseUrl, oauth, dt);
+        DynaUrl urlInfo = prepUrl(_config.getFitbitSleepUrl(), dt, _config.getFitbitSleepWindowDays());
+        SleepData sleepData = (SleepData) makeApiRequest(SleepData.class, urlInfo.getUrl(), oauth, dt);
 
         // get all database rows that overlap; go back in time a configurable number of days
-        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.SLEEP);
+        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.SLEEP);
 
         for(Sleep sleep : sleepData.getSleep()) {
             Optional<SimpleTrack> result = findSleepMatch(sleep, dbResults);
@@ -455,19 +478,13 @@ public class FitBitDataService {
      * @throws IOException
      */
     public StepsData getSteps(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt)
-                throws IOException, ExecutionException, InterruptedException {
+             throws IOException, ExecutionException, InterruptedException {
 
-        String dtStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        String baseUrl = _config.getFitbitStepsUrl().replace("${date}", dtStr);
+        DynaUrl urlInfo = prepUrl(_config.getFitbitStepsUrl(), dt, _config.getFitbitStepsWindowDays());
+        StepsData apiResults = (StepsData) makeApiRequest(StepsData.class, urlInfo.getUrl(), oauth, dt);
 
-        SleepData sleep = (SleepData) makeApiRequest(SleepData.class, baseUrl, oauth, dt);
+        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.STEPS);
 
-        // go back in time a configurable number of days
-        LocalDateTime dtStart = dt.minusDays(_config.getFitbitStepsWindowDays());
-        LocalDateTime dtEnd   = dt;
-        List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), dtStart, dtEnd, SimpleTrack.Entity.STEPS);
-
-        StepsData apiResults = (StepsData) makeApiRequest(StepsData.class, baseUrl, oauth, dt);
         for(Steps steps : apiResults.getSteps()) {
             Optional<SimpleTrack> result = findStepsMatch(steps, dbResults);
             SimpleTrack newTracker = new SimpleTrack(steps);
@@ -479,7 +496,7 @@ public class FitBitDataService {
             _trackService.createSimpleTrack(newTracker);
         }
 
-        return (StepsData) makeApiRequest(StepsData.class, baseUrl, oauth, dt);
+        return apiResults;
 
         /*
         final StepsData stepsData;
@@ -520,7 +537,7 @@ public class FitBitDataService {
             // yes, so see if we can find the user's email
 
             _logger.info(StringUtils.formatMessage(String.format("Attempting auth email for user '%s'", dc.getFkUserGuid())));
-            Optional<User> opt = _userService.findById(dc.getFkUserGuid());
+            Optional<User> opt = _userService.findById(dc.getFkUserGuid().toString());
             if (opt.isPresent()) {
                 User user = opt.get();
                 if (!StringUtils.isNullOrEmpty(user.getEmail())) {
@@ -586,13 +603,7 @@ public class FitBitDataService {
         _dcService.updateDataCenterConfig(dc);
     }
 
-    /**
-     * entry point for grabbing all available FitBit data for
-     * a given user
-     * @param dc - DataCenterConfig entry for use
-     * @throws IOException
-     */
-    public void processAll(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
+    public Optional<OAuthCredentials> getCredentials(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
         OAuthCredentials creds;
 
         // do we already have the credentials in the cache?
@@ -605,10 +616,8 @@ public class FitBitDataService {
                 String msg = String.format("No OAuth credentials stored in database for user ID: %s", dc.getFkUserGuid().toString());
                 _logger.error(StringUtils.formatMessage(msg));
 
-                // send notification email if enabled
-                notifyUser(dc);
                 updateDataCenterConfigError(dc, dtNow);
-                return;
+                return Optional.empty();
             }
             else {
                 // we have OAuth credentials
@@ -622,6 +631,24 @@ public class FitBitDataService {
         // update or add to cache
         _authMap.put(dc.getFkUserGuid(), creds);
 
+        return Optional.of(creds);
+    }
+
+    /**
+     * entry point for grabbing all available FitBit data for
+     * a given user
+     * @param dc - DataCenterConfig entry for use
+     * @throws IOException
+     */
+    public void processAll(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
+        // extract credentials from DataCenterConfig instance
+        Optional<OAuthCredentials> optCreds = getCredentials(dc, dtNow);
+        if (!optCreds.isPresent()) {
+            _logger.error(StringUtils.formatMessage("Could not extract credentials from DataCenterConfig for " + dc.getFkUserGuid()));
+            return;
+        }
+
+        OAuthCredentials creds = optCreds.get();
         if (creds.isExpired()) {
             // need to refresh
             try {

@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -46,15 +45,14 @@ public class DataCenterConfigServiceTests {
         // String statusText, int dataStatus, String credentials, LocalDateTime modified) {
 
         LocalDateTime lastChecked = LocalDateTime.now();
-        Instant modified = Instant.now();
+        LocalDateTime modified = LocalDateTime.now();
         DataCenterConfig dc1 = new DataCenterConfig(TEST_USER_GUID1, SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
                                         0, Active.status, "OK", 0, TEST_CREDS, modified);
 
         dc1 = _service.createDataCenterConfig(dc1);
         assertNotNull(dc1);
 
-        DataCenterConfig.Pkey id = new DataCenterConfig.Pkey(dc1.getFkUserGuid(), dc1.getSourceSystem());
-        Optional<DataCenterConfig> optDc = _service.findById(id);
+        Optional<DataCenterConfig> optDc = _service.findById(dc1.getFkUserGuid(), dc1.getSourceSystem());
         assertTrue(optDc.isPresent());
 
         DataCenterConfig dc2 = optDc.get();
@@ -65,7 +63,7 @@ public class DataCenterConfigServiceTests {
         _service.updateDataCenterConfig(dc2);
 
         // see if update worked
-        optDc = _service.findById(id);
+        optDc = _service.findById(dc1.getFkUserGuid(), dc1.getSourceSystem());
         dc2 = optDc.get();
         assertNotEquals(dc1, dc2);
 
@@ -79,8 +77,7 @@ public class DataCenterConfigServiceTests {
 
         dc2 = _service.createDataCenterConfig(dc2);
 
-        id = new DataCenterConfig.Pkey(dc2.getFkUserGuid(), dc2.getSourceSystem());
-        optDc = _service.findById(id);
+        optDc = _service.findById(dc2.getFkUserGuid(), dc2.getSourceSystem());
         assertTrue(optDc.isPresent());
 
         long count = _service.count();
@@ -90,19 +87,19 @@ public class DataCenterConfigServiceTests {
         dcList = _service.findAll();
         assertTrue(dcList.size() > 1);
 
+        /*
         // restore active flag
-        id = new DataCenterConfig.Pkey(dc1.getFkUserGuid(), dc1.getSourceSystem());
-        optDc = _service.findById(id);
+        optDc = _service.findById(dc1.getFkUserGuid(), dc1.getSourceSystem());
         assertTrue(optDc.isPresent());
         dc1 = optDc.get();
         dc1.setStatus(DataCenterConfig.PartnerStatus.Active.status);
         _service.updateDataCenterConfig(dc1);
 
-        optDc = _service.findById(id);
+        optDc = _service.findById(dc1.getFkUserGuid(), dc1.getSourceSystem());
         assertTrue(optDc.isPresent());
         dc1 = optDc.get();
         assertEquals(DataCenterConfig.PartnerStatus.Active.status, dc1.getStatus());
-
+        */
         DataCenterConfig dc3 = new DataCenterConfig(TEST_USER_GUID2, SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
                 0, Active.status, "OK", 0, TEST_CREDS, modified);
         _service.createDataCenterConfig(dc3);
@@ -111,13 +108,13 @@ public class DataCenterConfigServiceTests {
         dcList = _service.findAllFitbitActive();
         assertTrue(dcList.size() > 1);
 
+        /*
         dcList = _service.findAll();
         for (DataCenterConfig dc : dcList) {
             _service.deleteDataCenterConfig(dc);
         }
-        _service.deleteDataCenterConfig(dc2);
         count = _service.count();
         assertEquals(0, count);
-
+        */
     }
 }

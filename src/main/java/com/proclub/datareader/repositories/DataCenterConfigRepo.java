@@ -6,9 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface DataCenterConfigRepo extends JpaRepository<DataCenterConfig, DataCenterConfig.Pkey> {
+public interface DataCenterConfigRepo extends JpaRepository<DataCenterConfig, UUID> {
     /*
         fkUserGuid uniqueidentifier NOT NULL,
     SourceSystem int NOT NULL,
@@ -21,9 +22,12 @@ public interface DataCenterConfigRepo extends JpaRepository<DataCenterConfig, Da
     Modified datetime NOT NULL
      */
     List<DataCenterConfig> findAllByLastCheckedAfter(LocalDateTime dtStart);
-    List<DataCenterConfig> findAllByLastCheckedBefore(LocalDateTime dtStart);
     List<DataCenterConfig> findAllByLastCheckedBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
     List<DataCenterConfig> findAllByModifiedAfter(LocalDateTime dtStart);
     List<DataCenterConfig> findAllByModifiedBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
     List<DataCenterConfig> findAllByStatusAndSourceSystem(int status, int sourceSystem);
+
+    List<DataCenterConfig> findAllByFkUserGuid(UUID userId);
+    List<DataCenterConfig> findAllByFkUserGuidAndSourceSystem(UUID userId, int sourceSystem);
+
 }

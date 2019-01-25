@@ -41,6 +41,6 @@ public interface SimpleTrackRepo extends JpaRepository<SimpleTrack, UUID> {
     List<SimpleTrack> findAllByEntityTypeAndTrackDateTimeBetween(int entityType, LocalDateTime dtStart, LocalDateTime dtEnd);
 
     List<SimpleTrack> findByTrackDateTimeBetweenAndFkUserGuidAndSourceSystemAndEntityTypeOrderByTrackDateTime(
-                        LocalDateTime dtStart, LocalDateTime dstEnd, UUID userId, int sourceSystem, short entityType);
+                        LocalDateTime dtStart, LocalDateTime dstEnd, UUID userId, int sourceSystem, int entityType);
 
 }

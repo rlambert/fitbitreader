@@ -66,6 +66,7 @@ public class OAuthCredentials {
      * from the expiresAt field
      * @return LocalDateTime
      */
+    @JsonIgnore
     public LocalDateTime getExpirationDateTime() {
         if (this.expirationDt == null) {
             this.expirationDt = LocalDateTime.parse(this.expiresAt);
@@ -77,6 +78,7 @@ public class OAuthCredentials {
      * returns true if the OAuth token is expired
      * @return boolean
      */
+    @JsonIgnore
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(this.getExpirationDateTime());
     }
