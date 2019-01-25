@@ -27,7 +27,7 @@ public interface DataCenterConfigRepo extends JpaRepository<DataCenterConfig, UU
     List<DataCenterConfig> findAllByModifiedBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
     List<DataCenterConfig> findAllByStatusAndSourceSystem(int status, int sourceSystem);
 
-    List<DataCenterConfig> findAllByFkUserGuid(UUID userId);
-    List<DataCenterConfig> findAllByFkUserGuidAndSourceSystem(UUID userId, int sourceSystem);
+    List<DataCenterConfig> findAllByFkUserGuid(String userId);
+    List<DataCenterConfig> findAllByFkUserGuidAndSourceSystem(String userId, int sourceSystem);
 
 }

@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class ActivityLevelService {
@@ -68,11 +67,11 @@ public class ActivityLevelService {
         return _repo.findAllByTrackDateTimeBetween(dtStart, dtEnd);
     }
 
-    public List<ActivityLevel> findByUserAndTrackDateWindow(UUID userId, LocalDateTime dtStart, LocalDateTime dtEnd) {
+    public List<ActivityLevel> findByUserAndTrackDateWindow(String userId, LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findByFkUserGuidAndTrackDateTimeBetweenOrderByTrackDateTime(userId, dtStart, dtEnd);
     }
 
-    public List<ActivityLevel> findAfter(UUID userId, LocalDateTime dtStart) {
+    public List<ActivityLevel> findAfter(String userId, LocalDateTime dtStart) {
         return _repo.findByFkUserGuidAndTrackDateTimeAfter(userId, dtStart);
     }
 

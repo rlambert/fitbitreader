@@ -46,7 +46,7 @@ public class DataCenterConfigServiceTests {
 
         LocalDateTime lastChecked = LocalDateTime.now();
         LocalDateTime modified = LocalDateTime.now();
-        DataCenterConfig dc1 = new DataCenterConfig(TEST_USER_GUID1, SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
+        DataCenterConfig dc1 = new DataCenterConfig(TEST_USER_GUID1.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
                                         0, Active.status, "OK", 0, TEST_CREDS, modified);
 
         dc1 = _service.createDataCenterConfig(dc1);
@@ -72,7 +72,7 @@ public class DataCenterConfigServiceTests {
         assertTrue(dcList.size() > 0);
 
         // create another to test compound primary key
-        dc2 = new DataCenterConfig(TEST_USER_GUID1, SimpleTrack.SourceSystem.GARMIN.sourceSystem, lastChecked,
+        dc2 = new DataCenterConfig(TEST_USER_GUID1.toString(), SimpleTrack.SourceSystem.GARMIN.sourceSystem, lastChecked,
                 0, Active.status, "OK", 0, TEST_CREDS, modified);
 
         dc2 = _service.createDataCenterConfig(dc2);
@@ -100,7 +100,7 @@ public class DataCenterConfigServiceTests {
         dc1 = optDc.get();
         assertEquals(DataCenterConfig.PartnerStatus.Active.status, dc1.getStatus());
         */
-        DataCenterConfig dc3 = new DataCenterConfig(TEST_USER_GUID2, SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
+        DataCenterConfig dc3 = new DataCenterConfig(TEST_USER_GUID2.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
                 0, Active.status, "OK", 0, TEST_CREDS, modified);
         _service.createDataCenterConfig(dc3);
 

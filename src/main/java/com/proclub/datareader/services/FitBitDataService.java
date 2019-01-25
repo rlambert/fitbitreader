@@ -59,7 +59,7 @@ public class FitBitDataService {
     private static Logger _logger = LoggerFactory.getLogger(FitBitDataService.class);
 
     // This is effectively a cache of user credentials
-    private static ConcurrentHashMap<UUID, OAuthCredentials> _authMap = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<String, OAuthCredentials> _authMap = new ConcurrentHashMap<>();
 
 
     // ----------------------------- instance data
@@ -134,7 +134,7 @@ public class FitBitDataService {
      * @param userGuid - UUID
      * @param creds - OAuthCredentials
      */
-    public void putOAuthCredentials(UUID userGuid, OAuthCredentials creds) {
+    public void putOAuthCredentials(String userGuid, OAuthCredentials creds) {
         _authMap.put(userGuid, creds);
     }
 
@@ -299,7 +299,7 @@ public class FitBitDataService {
         LocalDateTime dtEnd = dt.plusDays(1);
 
         // these are in TrackDateOrder
-        List<ActivityLevel> dbActivityLevels = _activityLevelService.findByUserAndTrackDateWindow(dc.getFkUserGuid(), dtStart, dtEnd);
+        List<ActivityLevel> dbActivityLevels = _activityLevelService.findByUserAndTrackDateWindow(dc.getFkUserGuid().toString(), dtStart, dtEnd);
 
         List<ActivityLevel> apiResults = new ArrayList<>();
 
@@ -308,7 +308,7 @@ public class FitBitDataService {
             ActivityLevelData data = (ActivityLevelData) makeApiRequest(ActivityLevelData.class, baseUrl, oauth, dtloop);
             if (data != null) {
                 // convert to our DTO
-                ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtloop, data);
+                ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid().toString(), dtloop, data);
                 Optional<ActivityLevel> optMatch = findActivityLevelMatch(activityLevel, dbActivityLevels);
                 if (optMatch.isPresent()) {
                     ActivityLevel dbLevel = optMatch.get();

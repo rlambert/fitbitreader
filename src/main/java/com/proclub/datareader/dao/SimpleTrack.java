@@ -113,12 +113,17 @@ public class SimpleTrack {
     }
 
     @Id
-    @GeneratedValue
     @Column(name = "SimpleTrackGuid")
-    private UUID simpleTrackGuid;       // = NullValue.Guid;
+    private String simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
+    public void setSimpleTrackGuid(String id) {
+        this.simpleTrackGuid = id.toUpperCase();
+    }
 
     @Column(name = "fkUserGuid")
-    private UUID fkUserGuid = NullValue.Guid;
+    private String fkUserGuid = NullValue.Guid.toString();
+    public void setFkUserGuid(String id) {
+        this.fkUserGuid = id.toUpperCase();
+    }
 
     @Column(name = "fkProviderId")
     private int fkProviderId = NullValue.Int;
@@ -203,12 +208,12 @@ public class SimpleTrack {
      * @param valTime2
      * @param deviceReported
      */
-    public SimpleTrack(UUID simpleTrackGuid, UUID fkUserGuid, int fkProviderId, int sourceSystem,
+    public SimpleTrack(String simpleTrackGuid, String fkUserGuid, int fkProviderId, int sourceSystem,
                             Instant modifiedDateTime, Instant trackDateTime, int entityType, int valTinyInt,
                             int valInt, double valDec, String valStr, int sync, int valInt2, int valTime,
                             int valTime2, byte deviceReported) {
         this.simpleTrackGuid = simpleTrackGuid;
-        this.fkUserGuid = fkUserGuid;
+        this.fkUserGuid = fkUserGuid.toUpperCase();
         this.fkProviderId = fkProviderId;
         this.sourceSystem = sourceSystem;
         this.modifiedDateTime = (int) modifiedDateTime.toEpochMilli()/1000;
@@ -225,11 +230,11 @@ public class SimpleTrack {
         this.deviceReported = deviceReported;
     }
 
-    public SimpleTrack(UUID fkUserGuid, int fkProviderId, int sourceSystem,
+    public SimpleTrack(String fkUserGuid, int fkProviderId, int sourceSystem,
                        Instant modifiedDateTime, Instant trackDateTime, int entityType, int valTinyInt,
                        int valInt, double valDec, String valStr, int sync, int valInt2, int valTime,
                        int valTime2, byte deviceReported) {
-        this.fkUserGuid = fkUserGuid;
+        this.fkUserGuid = fkUserGuid.toUpperCase();
         this.fkProviderId = fkProviderId;
         this.sourceSystem = sourceSystem;
         this.modifiedDateTime = (int) modifiedDateTime.toEpochMilli()/1000;
@@ -252,7 +257,7 @@ public class SimpleTrack {
      */
     public SimpleTrack(Sleep sleep) {
         this.entityType = Entity.SLEEP.entityValue;
-        this.simpleTrackGuid = UUID.randomUUID();
+        this.simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
         this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
         this.valInt = (int) sleep.getMinutesToFallAsleep();
         this.valDec = (int) (sleep.getMinutesAsleep()/60);
@@ -269,7 +274,7 @@ public class SimpleTrack {
      */
     public SimpleTrack (Steps steps) {
         this.entityType = Entity.STEPS.entityValue;
-        this.simpleTrackGuid = UUID.randomUUID();
+        this.simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
         this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
 
         String dtStr = steps.getDateTime();   // YYYY-MM-DD
@@ -279,7 +284,7 @@ public class SimpleTrack {
         }
         Instant dtTrack = Instant.parse(dtStr);
         this.trackDateTime = (int) dtTrack.toEpochMilli()/1000;
-        this.valInt = (int) steps.getValue();
+        this.valInt = steps.getValue();
     }
 
     /**
@@ -288,7 +293,7 @@ public class SimpleTrack {
      */
     public SimpleTrack(Weight wt) {
         this.entityType = Entity.WEIGHT.entityValue;
-        this.simpleTrackGuid = UUID.randomUUID();
+        this.simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
         this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
         this.valDec = wt.getWeight();
         this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);

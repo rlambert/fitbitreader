@@ -5,10 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 
-public interface SimpleTrackRepo extends JpaRepository<SimpleTrack, UUID> {
+public interface SimpleTrackRepo extends JpaRepository<SimpleTrack, String> {
     /*
      SimpleTrackGuid uniqueidentifier NOT NULL PRIMARY KEY,
      fkUserGuid uniqueidentifier NOT NULL,
@@ -28,11 +27,11 @@ public interface SimpleTrackRepo extends JpaRepository<SimpleTrack, UUID> {
      DeviceReported bit NOT NULL
       */
 
-    List<SimpleTrack> findByFkUserGuid(UUID uid);
+    List<SimpleTrack> findByFkUserGuid(String uid);
 
-    List<SimpleTrack> findByFkUserGuidAndTrackDateTimeAfter(UUID uid, LocalDateTime dtStart);
+    List<SimpleTrack> findByFkUserGuidAndTrackDateTimeAfter(String uid, LocalDateTime dtStart);
 
-    List<SimpleTrack> findByFkUserGuidAndTrackDateTimeBetween(UUID uid, LocalDateTime dtStart, LocalDateTime dtEnd);
+    List<SimpleTrack> findByFkUserGuidAndTrackDateTimeBetween(String uid, LocalDateTime dtStart, LocalDateTime dtEnd);
 
     List<SimpleTrack> findAllByTrackDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
 
@@ -41,6 +40,6 @@ public interface SimpleTrackRepo extends JpaRepository<SimpleTrack, UUID> {
     List<SimpleTrack> findAllByEntityTypeAndTrackDateTimeBetween(int entityType, LocalDateTime dtStart, LocalDateTime dtEnd);
 
     List<SimpleTrack> findByTrackDateTimeBetweenAndFkUserGuidAndSourceSystemAndEntityTypeOrderByTrackDateTime(
-                        LocalDateTime dtStart, LocalDateTime dstEnd, UUID userId, int sourceSystem, int entityType);
+                        LocalDateTime dtStart, LocalDateTime dstEnd, String userId, int sourceSystem, int entityType);
 
 }

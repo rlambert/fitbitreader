@@ -9,7 +9,6 @@ import javax.persistence.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 
 import static javax.persistence.GenerationType.IDENTITY;
 
@@ -88,7 +87,10 @@ public class DataCenterConfig {
     private int id;
 
     @Column(name="fkUserGuid")
-    private UUID fkUserGuid;
+    private String fkUserGuid;
+    public void setFkUserGuid(String uid) {
+        fkUserGuid = uid.toUpperCase();
+    }
 
     @Column(name="SourceSystem")
     private int sourceSystem;
@@ -157,9 +159,9 @@ public class DataCenterConfig {
      * @param credentials
      * @param modified
      */
-    public DataCenterConfig(UUID fkUserGuid, int sourceSystem, LocalDateTime lastChecked, int panelDisplay, int status,
+    public DataCenterConfig(String fkUserGuid, int sourceSystem, LocalDateTime lastChecked, int panelDisplay, int status,
                             String statusText, int dataStatus, String credentials, LocalDateTime modified) {
-        this.fkUserGuid = fkUserGuid;
+        this.fkUserGuid = fkUserGuid.toUpperCase();
         this.sourceSystem = sourceSystem;
         this.lastChecked = lastChecked.truncatedTo(ChronoUnit.SECONDS);
         this.panelDisplay = panelDisplay;

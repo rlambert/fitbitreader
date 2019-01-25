@@ -22,6 +22,10 @@ public class Client {
 
     @Column(name="fkTrackerGuid")
     private String fkTrackerGuid;
+    public void setFkTrackerGuid(String id) {
+        fkTrackerGuid = id.toUpperCase();
+    }
+
     @Column(name="fkUserStore2020")
     private String fkUserStore2020;
     @Column(name="fkUserStorePRO")

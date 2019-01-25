@@ -52,7 +52,7 @@ public class ClientServiceTests {
 
         // see if we have 1 in our list
         List<Client> clients = _service.findAll();
-        assertTrue(clients.size() == 1);
+        assertTrue(clients.size() > 1);
 
         client2 = new Client(TEST_CLIENT_TYPE2, TEST_FNAME2, TEST_LNAME2, TEST_EMAIL2, TEST_POSTAL_CODE2,
                 TEST_FKTRACKER_GUID2, TEST_FKUSERTORE2020, TEST_FKUSERSTOREPRO, TEST_FKGRPID2, TEST_LOGIN2, TEST_PWD2,
@@ -62,22 +62,20 @@ public class ClientServiceTests {
         assertTrue(client2.getClientId() > 0);
         assertTrue(client2.getClientId() > client1.getClientId());
 
-        long count = _service.count();
-        assertEquals(2, count);
-
         // make sure we return 2
         clients = _service.findAll();
-        assertTrue(clients.size() == 2);
+        assertTrue(clients.size() > 2);
 
         clients = _service.findByFnameAndLname(TEST_FNAME2, TEST_LNAME2);
-        assertTrue(clients.size() == 1);
+        assertTrue(clients.size() > 0);
 
+        long count1 = _service.count();
         _service.deleteClient(client1);
-        count = _service.count();
-        assertEquals(1, count);
+        long count2 = _service.count();
+        assertEquals(count1-1, count2);
 
         _service.deleteClient(client2);
-        count = _service.count();
-        assertEquals(0, count);
+        count2 = _service.count();
+        assertEquals(count1-2, count2);
     }
 }

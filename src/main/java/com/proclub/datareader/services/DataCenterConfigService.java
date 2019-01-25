@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class DataCenterConfigService {
@@ -52,7 +51,7 @@ Modified datetime NOT NULL
     }
 
 
-    public Optional<DataCenterConfig> findById(UUID id, int sourceSystem) {
+    public Optional<DataCenterConfig> findById(String id, int sourceSystem) {
         List<DataCenterConfig> rows = _repo.findAllByFkUserGuidAndSourceSystem(id, sourceSystem);
         if (rows.size() > 0) {
             return Optional.of(rows.get(0));

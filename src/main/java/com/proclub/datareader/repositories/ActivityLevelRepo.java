@@ -5,7 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 
 public interface ActivityLevelRepo extends JpaRepository<ActivityLevel, Long> {
@@ -22,11 +21,11 @@ public interface ActivityLevelRepo extends JpaRepository<ActivityLevel, Long> {
      */
     List<ActivityLevel> findByActivityLevelId(long id);
 
-    List<ActivityLevel> findByFkUserGuid(UUID uid);
+    List<ActivityLevel> findByFkUserGuid(String uid);
 
-    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeAfter(UUID uid, LocalDateTime dtStart);
+    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeAfter(String uid, LocalDateTime dtStart);
 
-    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeBetweenOrderByTrackDateTime(UUID uid, LocalDateTime dtStart, LocalDateTime dtEnd);
+    List<ActivityLevel> findByFkUserGuidAndTrackDateTimeBetweenOrderByTrackDateTime(String uid, LocalDateTime dtStart, LocalDateTime dtEnd);
 
     List<ActivityLevel> findAllByTrackDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
 

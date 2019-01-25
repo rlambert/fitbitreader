@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class SimpleTrackService {
@@ -38,9 +37,9 @@ public class SimpleTrackService {
         _repo.delete(SimpleTrack);
     }
 
-    public void deleteSimpleTrackById(UUID id) { _repo.deleteById(id);}
+    public void deleteSimpleTrackById(String id) { _repo.deleteById(id);}
 
-    public Optional<SimpleTrack> findById(UUID id) {
+    public Optional<SimpleTrack> findById(String id) {
         return _repo.findById(id);
     }
 
@@ -64,7 +63,7 @@ public class SimpleTrackService {
         return _repo.findAllByTrackDateTimeBetween(dtStart, dtEnd);
     }
 
-    public List<SimpleTrack> findByUserTrackDateRange(UUID userId, LocalDateTime dtStart, LocalDateTime dtEnd,
+    public List<SimpleTrack> findByUserTrackDateRange(String userId, LocalDateTime dtStart, LocalDateTime dtEnd,
                                                        SimpleTrack.Entity etype) {
         // we get to assume FitBit as the source system for this app
         int src = SimpleTrack.SourceSystem.FITBIT.sourceSystem;

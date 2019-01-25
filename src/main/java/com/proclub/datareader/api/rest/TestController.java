@@ -9,6 +9,7 @@
 
 package com.proclub.datareader.api.rest;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.*;
 import com.github.scribejava.apis.FitbitApi20;
@@ -32,7 +33,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -178,6 +178,18 @@ public class TestController extends ApiBase {
         }
     }
 
+    private String genResponse(Optional opt, String type, String id) throws JsonProcessingException {
+        Map<String, Object> result = new HashMap<>();
+        if (!opt.isPresent()) {
+            String msg = String.format("error - %s ID: %s does not exist.}", type, id);
+            result.put("result", msg);
+        } else {
+            result.put("result", opt.get());
+        }
+        String json = this.serialize(result);
+        return json;
+    }
+
     /**
      * helper method to make sure this API is only available via localhost
      *
@@ -200,8 +212,11 @@ public class TestController extends ApiBase {
     @GetMapping(value = {"test/email/{toAddr}/{fname}"}, produces = "text/html")
     public String runMailTest(@PathVariable String toAddr, @PathVariable String fname, HttpServletRequest req) throws IOException {
         checkHost(req);
+        Map<String, String> result = new HashMap<>();
         _emailService.sendTemplatedEmail(toAddr, fname);
-        return "Email sucessfully sent to: " + toAddr;
+        result.put("result", "Email sucessfully sent to: " + toAddr);
+        String json = this.serialize(result);
+        return json;
     }
 
     @GetMapping(value = {"test/db"}, produces = "application/json")
@@ -212,14 +227,10 @@ public class TestController extends ApiBase {
     }
 
     @GetMapping(value = {"test/db/datacenterconfig/{id}/{system}"}, produces = "application/json")
-    public DataCenterConfig runDbTestDc(@PathVariable UUID id, @PathVariable int system, HttpServletRequest req) throws IOException {
+    public String runDbTestDc(@PathVariable UUID id, @PathVariable int system, HttpServletRequest req) throws IOException {
         checkHost(req);
-        Optional<DataCenterConfig> opt = _dcService.findById(id, system);
-        if (!opt.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"DataCenterConfig ID: %s - %s does not exist.\"}", id, system));
-        } else {
-            return opt.get();
-        }
+        Optional<DataCenterConfig> opt = _dcService.findById(id.toString(), system);
+        return genResponse(opt, "DataCenterConfig", id.toString());
     }
 
     @GetMapping(value = {"test/db/datacenterconfig/active"}, produces = "application/json")
@@ -230,14 +241,10 @@ public class TestController extends ApiBase {
 
 
     @GetMapping(value = {"test/db/user/{id}"}, produces = "application/json")
-    public User runDbTestUser(@PathVariable String id, HttpServletRequest req) throws IOException {
+    public String runDbTestUser(@PathVariable String id, HttpServletRequest req) throws IOException {
         checkHost(req);
         Optional<User> opt = _userService.findById(id);
-        if (!opt.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"User %s does not exist.\"}", id));
-        } else {
-            return opt.get();
-        }
+        return genResponse(opt, "User", id.toString());
     }
 
 
@@ -250,36 +257,25 @@ public class TestController extends ApiBase {
 
 
     @GetMapping(value = {"test/db/activitylevel/{id}"}, produces = "application/json")
-    public ActivityLevel runDbTestActivityLevel(@PathVariable long id, HttpServletRequest req) throws IOException {
+    public String runDbTestActivityLevel(@PathVariable long id, HttpServletRequest req) throws IOException {
         checkHost(req);
+
         Optional<ActivityLevel> opt = _activityLevelService.findById(id);
-        if (!opt.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"ActivityLevel ID: %s does not exist.\"}", id));
-        } else {
-            return opt.get();
-        }
+        return genResponse(opt, "ActivityLevel", String.valueOf(id));
     }
 
     @GetMapping(value = {"test/db/client/{id}"}, produces = "application/json")
-    public Client runDbTestClient(@PathVariable int id, HttpServletRequest req) throws IOException {
+    public String runDbTestClient(@PathVariable int id, HttpServletRequest req) throws IOException {
         checkHost(req);
         Optional<Client> opt = _clientService.findById(id);
-        if (!opt.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"Client ID: %s does not exist.\"}", id));
-        } else {
-            return opt.get();
-        }
+        return genResponse(opt, "Client", String.valueOf(id));
     }
 
     @GetMapping(value = {"test/db/simpletrack/{id}"}, produces = "application/json")
-    public SimpleTrack runDbTestTrack(@PathVariable UUID id, HttpServletRequest req) throws IOException {
+    public String runDbTestTrack(@PathVariable UUID id, HttpServletRequest req) throws IOException {
         checkHost(req);
-        Optional<SimpleTrack> opt = _trackService.findById(id);
-        if (!opt.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("{\"error\":\"SimpleTrack ID: %s does not exist.\"}", id));
-        } else {
-            return opt.get();
-        }
+        Optional<SimpleTrack> opt = _trackService.findById(id.toString());
+        return genResponse(opt, "SimpleTrack", id.toString());
     }
 
 
@@ -319,10 +315,13 @@ public class TestController extends ApiBase {
     }
 
     @GetMapping(value = {"test/oauth2"}, produces = "application/json")
-    public Map<UUID, String> testLogins() {
+    public Map<String, Object> testLogins(HttpServletRequest req) {
+        checkHost(req);
+
         List<DataCenterConfig> subs = _dcService.findAll();
         LocalDateTime dtNow = LocalDateTime.now();
-        Map<UUID, String> credsMap = new HashMap<>();
+        Map<String, String> credsMap = new HashMap<>();
+        Map<String, Object> result = new HashMap<>();
 
         for(DataCenterConfig dc : subs) {
             try {
@@ -337,10 +336,37 @@ public class TestController extends ApiBase {
                 }
             }
             catch (IOException ex) {
-                _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
+                String msg = String.format("Error processing user: %s, error: %s", dc.getFkUserGuid(), ex.getMessage());
+                _logger.error(StringUtils.formatError(msg, ex));
+                credsMap.put(dc.getFkUserGuid(), msg);
             }
         }
-        return credsMap;
+        result.put("result", credsMap);
+        return result;
+    }
+
+    @GetMapping(value = {"test/credentials/{id}"}, produces = "application/json")
+    public String testLogins(@PathVariable UUID id, HttpServletRequest req) throws JsonProcessingException {
+        checkHost(req);
+        Map<String, String> result = new HashMap<>();
+        Optional<DataCenterConfig> optDc = _dcService.findById(id.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
+        if (!optDc.isPresent()) {
+            return genResponse(optDc, "ActivityLevel", id.toString());
+        }
+        DataCenterConfig dc = optDc.get();
+        try {
+            _fitbitService.processAll(dc, LocalDateTime.now());
+            String msg = String.format("Finished processing API data for %s", dc.getFkUserGuid());
+            _logger.info(msg);
+            result.put("result", msg);
+        }
+        catch (IOException ex) {
+            String msg = String.format("An error occurred while processing API data for %s", dc.getFkUserGuid());
+            _logger.error(msg, ex);
+            result.put("result", msg);
+            result.put("error", ex.getMessage());
+        }
+        return this.serialize(result);
     }
 
 }

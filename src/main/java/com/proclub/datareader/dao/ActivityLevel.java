@@ -6,7 +6,6 @@ import lombok.Data;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 
 import static javax.persistence.GenerationType.IDENTITY;
 
@@ -22,7 +21,10 @@ public class ActivityLevel {
     private long activityLevelId;
 
     @Column(name = "fkUserGuid")
-    private UUID fkUserGuid;
+    private String fkUserGuid;
+    public void setFkUserGuid(String uid) {
+        fkUserGuid = uid.toUpperCase();
+    }
 
     @Column(name = "ModifiedDateTime")
     private LocalDateTime modifiedDateTime;
@@ -67,7 +69,7 @@ public class ActivityLevel {
      * @param veryActiveMinutes
      * @param deviceReported
      */
-    public ActivityLevel(UUID fkUserGuid, LocalDateTime modifiedDateTime, LocalDateTime trackDateTime, int fairlyActiveMinutes,
+    public ActivityLevel(String fkUserGuid, LocalDateTime modifiedDateTime, LocalDateTime trackDateTime, int fairlyActiveMinutes,
                          int lightlyActiveMinutes, int veryActiveMinutes, boolean deviceReported) {
         this.fkUserGuid = fkUserGuid;
         this.modifiedDateTime = modifiedDateTime;
@@ -85,7 +87,7 @@ public class ActivityLevel {
      * @param trackDateTime - Instant
      * @param actData - Instant
      */
-    public ActivityLevel (UUID fkUserGuid, LocalDateTime trackDateTime, ActivityLevelData actData) {
+    public ActivityLevel (String fkUserGuid, LocalDateTime trackDateTime, ActivityLevelData actData) {
         this.fkUserGuid = fkUserGuid;
         this.modifiedDateTime = LocalDateTime.now();
         this.trackDateTime = trackDateTime.truncatedTo(ChronoUnit.SECONDS);

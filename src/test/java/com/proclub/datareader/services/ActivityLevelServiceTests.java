@@ -13,10 +13,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static com.proclub.datareader.TestConstants.*;
 import static junit.framework.TestCase.assertTrue;
@@ -71,7 +68,7 @@ public class ActivityLevelServiceTests {
             public ActivityLevel(UUID fkUserGuid, Instant modifiedDateTime, Instant trackDateTime, int fairlyActiveMinutes,
                          int lightlyActiveMinutes, int veryActiveMinutes, boolean deviceReported) {
          */
-        ActivityLevel act1 = new ActivityLevel(TEST_USER_GUID1, modifiedDt, trackDt, TEST_FAIRLYACTIVE1, TEST_LIGHTLYACTIVE1,
+        ActivityLevel act1 = new ActivityLevel(user1.getUserGuid(), modifiedDt, trackDt, TEST_FAIRLYACTIVE1, TEST_LIGHTLYACTIVE1,
                         TEST_VERYACTIVE1, true);
 
         act1 = _service.createActivityLevel(act1);
@@ -87,7 +84,7 @@ public class ActivityLevelServiceTests {
         assertEquals(act1.getActivityLevelId(), act2.getActivityLevelId());
         assertEquals(act1.getFairlyActiveMinutes(), act2.getFairlyActiveMinutes());
 
-        act2 = new ActivityLevel(TEST_USER_GUID2, modifiedDt, trackDt, TEST_FAIRLYACTIVE2, TEST_LIGHTLYACTIVE2,
+        act2 = new ActivityLevel(user2.getUserGuid(), modifiedDt, trackDt, TEST_FAIRLYACTIVE2, TEST_LIGHTLYACTIVE2,
                 TEST_VERYACTIVE2, true);
 
         act2 = _service.createActivityLevel(act2);
