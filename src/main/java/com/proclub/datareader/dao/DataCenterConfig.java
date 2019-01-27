@@ -1,12 +1,12 @@
 package com.proclub.datareader.dao;
 
 import com.proclub.datareader.model.security.OAuthCredentials;
+import com.proclub.datareader.utils.StringUtils;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.persistence.*;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
@@ -39,7 +39,7 @@ public class DataCenterConfig {
 
         public short status;
 
-        private PartnerStatus(int status) {
+        PartnerStatus(int status) {
             this.status = (short) status;
         }
     }
@@ -60,7 +60,7 @@ public class DataCenterConfig {
 
         public short status;
 
-        private DataStatus(int status) {
+        DataStatus(int status) {
             this.status = (short) status;
         }
 
@@ -123,12 +123,18 @@ public class DataCenterConfig {
      * getter will create an OAuthCredentials instance from
      * the database column data (JSON) when called.
      * @return OAuthCredentials
-     * @throws IOException
     */
-
-    public OAuthCredentials getOAuth() throws IOException {
+    public OAuthCredentials getOAuthCredentials() {
         if (oAuthCredentials == null) {
-            oAuthCredentials = OAuthCredentials.create(credentials);
+            if (StringUtils.isNullOrEmpty(credentials)) {
+                throw new IllegalArgumentException(String.format("Credentials empty in DataCenterConfig for userId '%s'", this.getFkUserGuid()));
+            }
+            try {
+                oAuthCredentials = OAuthCredentials.create(credentials);
+            }
+            catch(Exception ex) {
+                _logger.error(StringUtils.formatError(ex));
+            }
         }
         return oAuthCredentials;
     }
@@ -149,15 +155,15 @@ public class DataCenterConfig {
 
     /**
      *
-     * @param fkUserGuid
-     * @param sourceSystem
-     * @param lastChecked
-     * @param panelDisplay
-     * @param status
-     * @param statusText
-     * @param dataStatus
-     * @param credentials
-     * @param modified
+     * @param fkUserGuid - String, user Id
+     * @param sourceSystem - int, FitBit = 8
+     * @param lastChecked - LocalDateTime
+     * @param panelDisplay - int
+     * @param status - int
+     * @param statusText - String
+     * @param dataStatus - int
+     * @param credentials - String
+     * @param modified LocalDateTime
      */
     public DataCenterConfig(String fkUserGuid, int sourceSystem, LocalDateTime lastChecked, int panelDisplay, int status,
                             String statusText, int dataStatus, String credentials, LocalDateTime modified) {

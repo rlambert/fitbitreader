@@ -3,7 +3,6 @@ package com.proclub.datareader.repositories;
 import com.proclub.datareader.dao.SimpleTrack;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -29,17 +28,13 @@ public interface SimpleTrackRepo extends JpaRepository<SimpleTrack, String> {
 
     List<SimpleTrack> findByFkUserGuid(String uid);
 
-    List<SimpleTrack> findByFkUserGuidAndTrackDateTimeAfter(String uid, LocalDateTime dtStart);
+    List<SimpleTrack> findByFkUserGuidAndEntityTypeAndSourceSystemAndTrackDateTimeBetweenOrderByTrackDateTime(
+                        String uid, int entityType, int sourceSystem, int dtStart, int dtEnd);
 
-    List<SimpleTrack> findByFkUserGuidAndTrackDateTimeBetween(String uid, LocalDateTime dtStart, LocalDateTime dtEnd);
+    List<SimpleTrack> findAllByTrackDateTimeBetween(int dtStart, int dtEnd);
 
-    List<SimpleTrack> findAllByTrackDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
+    List<SimpleTrack> findAllByModifiedDateTimeBetween(int dtStart, int dtEnd);
 
-    List<SimpleTrack> findAllByModifiedDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd);
-
-    List<SimpleTrack> findAllByEntityTypeAndTrackDateTimeBetween(int entityType, LocalDateTime dtStart, LocalDateTime dtEnd);
-
-    List<SimpleTrack> findByTrackDateTimeBetweenAndFkUserGuidAndSourceSystemAndEntityTypeOrderByTrackDateTime(
-                        LocalDateTime dtStart, LocalDateTime dstEnd, String userId, int sourceSystem, int entityType);
+    List<SimpleTrack> findAllByEntityTypeAndTrackDateTimeBetween(int entityType, int dtStart, int dtEnd);
 
 }

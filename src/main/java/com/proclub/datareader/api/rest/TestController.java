@@ -24,6 +24,7 @@ import com.proclub.datareader.api.ApiBase;
 import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.*;
 import com.proclub.datareader.model.security.OAuthCredentials;
+import com.proclub.datareader.model.steps.StepsData;
 import com.proclub.datareader.services.*;
 import com.proclub.datareader.utils.StringUtils;
 import org.slf4j.Logger;
@@ -178,6 +179,14 @@ public class TestController extends ApiBase {
         }
     }
 
+    /**
+     * helper method to generate a JSON response from an Optional
+     * @param opt
+     * @param type
+     * @param id
+     * @return
+     * @throws JsonProcessingException
+     */
     private String genResponse(Optional opt, String type, String id) throws JsonProcessingException {
         Map<String, Object> result = new HashMap<>();
         if (!opt.isPresent()) {
@@ -186,8 +195,7 @@ public class TestController extends ApiBase {
         } else {
             result.put("result", opt.get());
         }
-        String json = this.serialize(result);
-        return json;
+        return this.serialize(result);
     }
 
     /**
@@ -315,34 +323,28 @@ public class TestController extends ApiBase {
     }
 
     @GetMapping(value = {"test/oauth2"}, produces = "application/json")
-    public Map<String, Object> testLogins(HttpServletRequest req) {
+    public String testLogins(HttpServletRequest req) throws JsonProcessingException {
         checkHost(req);
 
-        List<DataCenterConfig> subs = _dcService.findAll();
+        List<DataCenterConfig> subs = _dcService.findAllFitbitActive();
         LocalDateTime dtNow = LocalDateTime.now();
         Map<String, String> credsMap = new HashMap<>();
         Map<String, Object> result = new HashMap<>();
 
         for(DataCenterConfig dc : subs) {
             try {
-                Optional<OAuthCredentials> optCreds = _fitbitService.getCredentials(dc, dtNow);
-                if (optCreds.isPresent()) {
-                    OAuthCredentials creds = optCreds.get();
-                    boolean valid = !creds.isExpired();
-                    credsMap.put(dc.getFkUserGuid(), String.format("UserId: %s, OAuth2 access token still valid: %s", dc.getFkUserGuid(), valid));
-                }
-                else {
-                    credsMap.put(dc.getFkUserGuid(), String.format("UserId: %s, OAuth2 credentials not available", dc.getFkUserGuid()));
-                }
+                OAuthCredentials creds = dc.getOAuthCredentials();
+                boolean valid = !creds.isExpired();
+                credsMap.put(dc.getFkUserGuid(), String.format("UserId: %s, OAuth2 access token still valid: %s, expirate date: %s", dc.getFkUserGuid(), valid, creds.getExpiresAt()));
             }
-            catch (IOException ex) {
+            catch (Exception ex) {
                 String msg = String.format("Error processing user: %s, error: %s", dc.getFkUserGuid(), ex.getMessage());
                 _logger.error(StringUtils.formatError(msg, ex));
                 credsMap.put(dc.getFkUserGuid(), msg);
             }
         }
         result.put("result", credsMap);
-        return result;
+        return this.serialize(result);
     }
 
     @GetMapping(value = {"test/credentials/{id}"}, produces = "application/json")
@@ -367,6 +369,22 @@ public class TestController extends ApiBase {
             result.put("error", ex.getMessage());
         }
         return this.serialize(result);
+    }
+
+    @GetMapping(value = {"test/steps/{userId}"}, produces = "application/json")
+    public String getSteps(@PathVariable String userId) {
+        try {
+            StepsData data = _fitbitService.getSteps(userId.toString(), true);
+            return this.serialize(data);
+        }
+        catch (IOException | InterruptedException | ExecutionException ex) {
+            String msg = String.format("Error processing user %s, error: %s", userId, ex.getMessage());
+            throw HttpClientErrorException.create(HttpStatus.INTERNAL_SERVER_ERROR, msg, null, msg.getBytes(), null);
+        }
+        catch (IllegalArgumentException ex) {
+            String msg = String.format("User %s does not exist in DataCenterConfig table.", userId);
+            throw HttpClientErrorException.create(HttpStatus.NOT_FOUND, msg, null, msg.getBytes(), null);
+        }
     }
 
 }

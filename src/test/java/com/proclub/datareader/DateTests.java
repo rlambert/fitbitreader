@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class DateTests {
 
@@ -27,6 +28,17 @@ public class DateTests {
          */
         LocalDateTime dt = LocalDateTime.parse("2019-01-08T23:59:59.000");
         System.out.println(dt.toString());
+
+        String dstr = "1/21/2019 5:18:59 PM";
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("M/d/yyyy h:mm:ss a");
+        LocalDateTime dt2 = LocalDateTime.parse(dstr, fmt);
+        assertNotNull(dt2);
+        assertEquals(21, dt2.getDayOfMonth());
+
+        dstr = "10/9/2019 10:18:59 PM";
+        dt2 = LocalDateTime.parse(dstr, fmt);
+        assertNotNull(dt2);
+        assertEquals(9, dt2.getDayOfMonth());
     }
 
     @Test

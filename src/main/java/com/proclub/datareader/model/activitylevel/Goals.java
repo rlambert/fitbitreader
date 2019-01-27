@@ -11,5 +11,5 @@ public class Goals {
     private double distance;
     private long floors;
     private long steps;
-
+    private long activeMinutes;
 }

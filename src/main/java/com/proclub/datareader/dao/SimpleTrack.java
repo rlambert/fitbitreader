@@ -254,10 +254,13 @@ public class SimpleTrack {
     /**
      * ctor for Sleep data
      * @param sleep - Sleep
+     * @param fkUserGuid - String
      */
-    public SimpleTrack(Sleep sleep) {
+    public SimpleTrack(Sleep sleep, String fkUserGuid) {
         this.entityType = Entity.SLEEP.entityValue;
         this.simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
+        this.fkUserGuid = fkUserGuid.toUpperCase();
+        this.sourceSystem = SourceSystem.FITBIT.sourceSystem;
         this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
         this.valInt = (int) sleep.getMinutesToFallAsleep();
         this.valDec = (int) (sleep.getMinutesAsleep()/60);
@@ -271,32 +274,38 @@ public class SimpleTrack {
     /**
      * ctor for Steps data
      * @param steps - Steps
+     * @param fkUserGuid - String
      */
-    public SimpleTrack (Steps steps) {
+    public SimpleTrack (Steps steps, String fkUserGuid) {
         this.entityType = Entity.STEPS.entityValue;
         this.simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
         this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
+        this.fkUserGuid = fkUserGuid.toUpperCase();
+        this.sourceSystem = SourceSystem.FITBIT.sourceSystem;
 
         String dtStr = steps.getDateTime();   // YYYY-MM-DD
         //         String dtStr = "2018-12-11T00:00:00.00Z";
         if (!dtStr.contains(":")) {
               dtStr += "T00:00:00.00Z";
         }
-        Instant dtTrack = Instant.parse(dtStr);
-        this.trackDateTime = (int) dtTrack.toEpochMilli()/1000;
+        LocalDateTime dtTrack = LocalDateTime.parse(dtStr);
+        this.trackDateTime = (int) dtTrack.toEpochSecond(ZoneOffset.ofHours(0));
         this.valInt = steps.getValue();
     }
 
     /**
      * constructor for weight data
      * @param wt - Weight
+     * @param fkUserGuid - String
      */
-    public SimpleTrack(Weight wt) {
+    public SimpleTrack(Weight wt, String fkUserGuid) {
         this.entityType = Entity.WEIGHT.entityValue;
         this.simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
         this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
         this.valDec = wt.getWeight();
         this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);
+        this.fkUserGuid = fkUserGuid.toUpperCase();
+        this.sourceSystem = SourceSystem.FITBIT.sourceSystem;
     }
 
 }

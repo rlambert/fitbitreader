@@ -35,6 +35,7 @@ public class AppConfig {
     private int fitbitSleepWindowDays;
     private int fitbitWeightWindowDays;
     private int fitbitStepsWindowDays;
+    private int fitbitReauthWindowDays;
 
     private boolean pollEnabled;
     private String pollCron;
@@ -42,6 +43,9 @@ public class AppConfig {
     private boolean unittest;
     private String adminUser;
     private String adminPassword;
+
+    private String fitbitTestUser;
+    private String fitbitTestPassword;
 
     private String authEmailSubject;
     private String authEmailFromAddr;

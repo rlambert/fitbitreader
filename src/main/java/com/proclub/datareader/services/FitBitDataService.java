@@ -1,5 +1,6 @@
 package com.proclub.datareader.services;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.scribejava.apis.FitbitApi20;
 import com.github.scribejava.apis.fitbit.FitBitOAuth2AccessToken;
@@ -33,8 +34,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 @Service
@@ -51,15 +52,12 @@ public class FitBitDataService {
 
         DynaUrl(String url, LocalDateTime dtStart, LocalDateTime dtEnd) {
             this.url = url;
-            this.startDate = dtStart;
-            this.endDate = dtEnd;
+            this.startDate = dtStart.truncatedTo(ChronoUnit.DAYS);
+            this.endDate = dtEnd.truncatedTo(ChronoUnit.DAYS);
         }
     }
 
     private static Logger _logger = LoggerFactory.getLogger(FitBitDataService.class);
-
-    // This is effectively a cache of user credentials
-    private static ConcurrentHashMap<String, OAuthCredentials> _authMap = new ConcurrentHashMap<>();
 
 
     // ----------------------------- instance data
@@ -116,37 +114,6 @@ public class FitBitDataService {
     // ----------------------------- methods
 
     /**
-     * get a user's OAuth creds from the cache
-     * @param userGuid - UUID
-     * @return Optional<OAuthCredentials>
-     */
-    public Optional<OAuthCredentials> getOAuthCredentials(UUID userGuid) {
-        if (_authMap.containsKey(userGuid)) {
-            return Optional.of(_authMap.get(userGuid));
-        }
-        else {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * adds or updates an OAuthCredentials object for a user.
-     * @param userGuid - UUID
-     * @param creds - OAuthCredentials
-     */
-    public void putOAuthCredentials(String userGuid, OAuthCredentials creds) {
-        _authMap.put(userGuid, creds);
-    }
-
-    /**
-     * remove an item from the cache.
-     * @param userGuid - UUID
-     */
-    public void deleteOAuthCredentials(UUID userGuid) {
-        _authMap.remove(userGuid);
-    }
-
-    /**
      * private helper method to extract JSON string from responses
      * @param response - Response
      * @return String - JSON result
@@ -160,7 +127,7 @@ public class FitBitDataService {
         else {
             ResponseBody responseBody = response.body();
             if (responseBody != null) {
-                json = responseBody.toString();
+                json = responseBody.string();
             }
             response.close();
         }
@@ -179,7 +146,7 @@ public class FitBitDataService {
      * @throws IOException - if FitBit.com API is down
      * @throws IllegalArgumentException - if values sent to API are incorrect
      */
-    OAuthCredentials getAuth(String code) throws InterruptedException, ExecutionException, IOException, IllegalArgumentException {
+    public OAuthCredentials getAuth(String code) throws InterruptedException, ExecutionException, IOException, IllegalArgumentException {
         // trade the Request Token and Verifier Code for the Access Token
         OAuth2AccessToken oauth2AccessToken = _oauthService.getAccessToken(code);
         if (!(oauth2AccessToken instanceof FitBitOAuth2AccessToken)) {
@@ -198,7 +165,7 @@ public class FitBitDataService {
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    public OAuthCredentials refreshToken(String refreshToken) throws IOException, ExecutionException, InterruptedException {
+    private OAuthCredentials refreshToken(String refreshToken) throws IOException, ExecutionException, InterruptedException {
         OAuth2AccessToken token = _oauthService.refreshAccessToken(refreshToken);
         // the original token already had to have been a FitBit token or we
         // wouldn't be here
@@ -213,61 +180,57 @@ public class FitBitDataService {
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    public OAuthCredentials refreshToken(OAuthCredentials oldCreds) throws IOException, ExecutionException, InterruptedException {
+    private OAuthCredentials refreshToken(OAuthCredentials oldCreds) throws IOException, ExecutionException, InterruptedException {
         return refreshToken(oldCreds.getRefreshToken());
     }
 
     /**
      * helper method to build an API request
-     * @param oauth
+     * @param dataClass - FitBitData implementation
+     * @param apiUrl - FitBit API URL
+     * @param oauth - OAuth credentials
      * @param dt - LocalDateTime
-     * @return
+     * @return FitBitApiData
      */
-    private FitBitApiData makeApiRequest(Class dataClass, String baseUrl, OAuthCredentials oauth, LocalDateTime dt)
+    private FitBitApiData makeApiRequest(Class dataClass, String apiUrl, OAuthCredentials oauth, LocalDateTime dt)
             throws IOException, ExecutionException, InterruptedException {
 
-        //LocalDateTime locDt = LocalDateTime.ofInstant(dt, _timeZone.toZoneId());
-        String dtStr = dt.format(DateTimeFormatter.ISO_DATE);  // YYYY-MM-DD
-        String url = baseUrl.replace("${date}", dtStr);
         Request req = new Request.Builder()
-                .url(url)
+                .url(apiUrl)
                 .header("Authorization", "Bearer " + oauth.getAccessToken())
                 .header("Accept-Language", "en_US")
                 .build();
 
         FitBitApiData objData = null;
-        Response response = null;
-        try {
-            response = _client.newCall(req).execute();
+        try (Response response = _client.newCall(req).execute()) {
             if (!response.isSuccessful()) {
                 if (response.code() == HttpStatus.UNAUTHORIZED.value()) {
                     // reauthorize (will throw an exception if it fails)
                     oauth = refreshToken(oauth);
-                    return makeApiRequest(dataClass, baseUrl, oauth, dt);
+                    return makeApiRequest(dataClass, apiUrl, oauth, dt);
                 }
             }
             else {
                 String json = processResponseBody(response);
+                _logger.info(String.format("json: %s", json));
                 objData = (FitBitApiData) _mapper.readValue(json, dataClass);
             }
         }
-        catch (IOException | ExecutionException | InterruptedException ex) {
-            _logger.error(StringUtils.formatError(ex));
-            throw ex;
+        catch (JsonParseException ex) {
+            _logger.error(StringUtils.formatError(String.format("JSON parse error processing %s", apiUrl), ex));
         }
-        finally {
-            if (response != null) {
-                response.close();
-            }
+        catch (IOException | ExecutionException | InterruptedException ex) {
+            _logger.error(StringUtils.formatError(String.format("Error processing %s", apiUrl), ex));
+            throw ex;
         }
         return objData;
     }
 
     /**
      * helper method to find an existing ActivityLevel
-     * @param fitbitData
-     * @param dbActivityLevels
-     * @return
+     * @param fitbitData - ActivityLevel instance
+     * @param dbActivityLevels - ActvityLeved list from database
+     * @return Optional<ActivityLevel>
      */
     private Optional<ActivityLevel> findActivityLevelMatch(ActivityLevel fitbitData, List<ActivityLevel> dbActivityLevels) {
         for(ActivityLevel row : dbActivityLevels) {
@@ -281,12 +244,11 @@ public class FitBitDataService {
     /**
      * getActivityLevels returns ActivityLevel data for a single day from the
      * FitBit API
-     * @param oauth - OAuthCredentials reference
      * @param dt - Instant
      * @return - SleepData
-     * @throws IOException
+     * @throws IOException on API error
      */
-    public List<ActivityLevel> getActivityLevels(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt)
+    public List<ActivityLevelData> getActivityLevels(DataCenterConfig dc, LocalDateTime dt)
                     throws IOException, ExecutionException, InterruptedException {
         LocalDateTime dtMidnight = LocalDateTime.of(dt.getYear(), dt.getMonth(), dt.getDayOfMonth(), 0, 0, 0, 0);
 
@@ -296,16 +258,21 @@ public class FitBitDataService {
 
         // now iterate through each day in window
         LocalDateTime dtloop = dtStart;
-        LocalDateTime dtEnd = dt.plusDays(1);
+        LocalDateTime dtEnd = dt.plusDays(1).truncatedTo(ChronoUnit.DAYS);
 
         // these are in TrackDateOrder
-        List<ActivityLevel> dbActivityLevels = _activityLevelService.findByUserAndTrackDateWindow(dc.getFkUserGuid().toString(), dtStart, dtEnd);
+        List<ActivityLevel> dbActivityLevels = _activityLevelService.findByUserAndTrackDateWindow(dc.getFkUserGuid(), dtStart, dtEnd);
 
-        List<ActivityLevel> apiResults = new ArrayList<>();
+        List<ActivityLevelData> apiResults = new ArrayList<>();
+
+        String url;
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         while (dtloop.isBefore(dtEnd)) {
+            url = baseUrl.replace("${date}", dtloop.format(fmt));
             // ask FitBit API for this day
-            ActivityLevelData data = (ActivityLevelData) makeApiRequest(ActivityLevelData.class, baseUrl, oauth, dtloop);
+            ActivityLevelData data = (ActivityLevelData) makeApiRequest(ActivityLevelData.class, url, dc.getOAuthCredentials(), dtloop);
             if (data != null) {
                 // convert to our DTO
                 ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid().toString(), dtloop, data);
@@ -317,9 +284,9 @@ public class FitBitDataService {
 
                 // this is an insert (if no match already in DB) or update
                 activityLevel = _activityLevelService.saveActivityLevel(activityLevel);
-                apiResults.add(activityLevel);
+                apiResults.add(data);
                 _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s - %s", dtloop.toString(), dc.getFkUserGuid())));
-                dtloop.plusDays(1);
+                dtloop = dtloop.plusDays(1);
             }
             else {
                 _logger.info(StringUtils.formatMessage(String.format("No ActivityLevelData available for %s - %s", dtloop.toString(), dc.getFkUserGuid())));
@@ -340,7 +307,6 @@ public class FitBitDataService {
     private DynaUrl prepUrl(String baseUrl, LocalDateTime dt, int windowDays) {
         LocalDateTime dtStart = dt.minusDays(windowDays);
         LocalDateTime dtEnd   = dt.plusDays(1);
-        LocalDateTime dtLoop  = dtStart;
 
         // get all API data for our date-range
         String dtStartStr = dtStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
@@ -374,22 +340,21 @@ public class FitBitDataService {
     /**
      * getWeight returns weight data for a single day from the
      * FitBit API
-     * @param oauth - OAuthCredentials reference
      * @param dt - Instant
      * @return - SleepData
      * @throws InterruptedException - not normal
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    public WeightData getWeight(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
+    public WeightData getWeight(DataCenterConfig dc, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
         DynaUrl urlInfo = prepUrl(_config.getFitbitWeightUrl(), dt, _config.getFitbitWeightWindowDays());
-        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, urlInfo.getUrl(), oauth, dt);
+        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, urlInfo.getUrl(), dc.getOAuthCredentials(), dt);
 
         List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.WEIGHT);
 
         for(Weight wt : apiResults.getWeight()) {
             Optional<SimpleTrack> result = findWeightMatch(wt, dbResults);
-            SimpleTrack newTracker = new SimpleTrack(wt);
+            SimpleTrack newTracker = new SimpleTrack(wt, dc.getFkUserGuid());
             if (result.isPresent()) {
                 SimpleTrack dbWt = result.get();
                 newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
@@ -423,22 +388,21 @@ public class FitBitDataService {
     /**
      * getSleep returns sleep data for a single day from the
      * FitBit API
-     * @param oauth - OAuthCredentials reference
      * @param dt - Instant
      * @return - SleepData
-     * @throws IOException
+     * @throws IOException on API error
      */
-    public SleepData getSleep(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
+    public SleepData getSleep(DataCenterConfig dc, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
 
         DynaUrl urlInfo = prepUrl(_config.getFitbitSleepUrl(), dt, _config.getFitbitSleepWindowDays());
-        SleepData sleepData = (SleepData) makeApiRequest(SleepData.class, urlInfo.getUrl(), oauth, dt);
+        SleepData sleepData = (SleepData) makeApiRequest(SleepData.class, urlInfo.getUrl(), dc.getOAuthCredentials(), dt);
 
         // get all database rows that overlap; go back in time a configurable number of days
         List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.SLEEP);
 
         for(Sleep sleep : sleepData.getSleep()) {
             Optional<SimpleTrack> result = findSleepMatch(sleep, dbResults);
-            SimpleTrack newTracker = new SimpleTrack(sleep);
+            SimpleTrack newTracker = new SimpleTrack(sleep, dc.getFkUserGuid());
             if (result.isPresent()) {
                 SimpleTrack dbWt = result.get();
                 newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
@@ -459,6 +423,9 @@ public class FitBitDataService {
      */
     private Optional<SimpleTrack> findStepsMatch(Steps steps, List<SimpleTrack> dbResults) {
         String dtStr = steps.getDateTime();
+        if (!dtStr.contains(":")) {
+            dtStr += "T00:00:00.000";
+        }
         LocalDateTime dt = LocalDateTime.parse(dtStr);
         ZoneOffset zos = ZoneOffset.ofHours(0);
 
@@ -471,23 +438,156 @@ public class FitBitDataService {
     }
 
     /**
-     * getSteps returns FitBet steps data for a single day
-     * @param oauth - OAuthCredentials reference
-     * @param dt - Instant
-     * @return - StepsData
-     * @throws IOException
+     * helper method to refresh credentials
+     * @param dc - DataCenterConfig
+     * @param dtNow - LocalDateTime
+     * @param suppressNotifications - boolean
+     * @return OAuthCredentials
      */
-    public StepsData getSteps(DataCenterConfig dc, OAuthCredentials oauth, LocalDateTime dt)
+    private Optional<OAuthCredentials> checkRefresh(DataCenterConfig dc, LocalDateTime dtNow, boolean suppressNotifications) {
+        OAuthCredentials creds;
+        creds = dc.getOAuthCredentials();
+
+        if (creds == null) {
+            // can't create them... fatal error for this user
+            String msg = String.format("No OAuth credentials stored in database for user ID: %s", dc.getFkUserGuid());
+            _logger.error(StringUtils.formatMessage(msg));
+            updateDataCenterConfigError(dc, dtNow);
+            return Optional.empty();
+        }
+        if (creds.isExpired()) {
+            // need to refresh
+            try {
+                updateDataCenterConfigDuringRefresh(dc, dtNow);
+                // if we can refresh token...
+                creds = refreshToken(creds);
+                if (creds.getExpirationDt().isAfter(dtNow)) {
+                    // ...then we need to update the database as well
+                    dc.setCredentials(creds.toJson());
+                    updateDataCenterConfigSuccess(dc, dtNow);
+                }
+                else {
+                    updateDataCenterConfigError(dc, dtNow);
+                }
+            }
+            catch(IOException | ExecutionException | InterruptedException ex) {
+                String msg = String.format("Could not refresh OAuth2 token for user '%s'", dc.getFkUserGuid());
+                _logger.error(msg, ex);
+                // send notification email if enabled
+                if (!suppressNotifications) {
+                    notifyUser(dc);
+                }
+                updateDataCenterConfigError(dc, dtNow);
+                return Optional.empty();
+            }
+        }  // end if creds expired
+        return Optional.of(creds);
+    }
+
+
+    /**
+     * helper method to look up DataCenterConfig row given a userId
+     * @param userId - String (UUID)
+     * @return DataCenterConfig
+     */
+    private DataCenterConfig getDataCenterConfig(String userId) {
+        Optional<DataCenterConfig> optDc = _dcService.findById(userId, SimpleTrack.SourceSystem.FITBIT.sourceSystem);
+        if (!optDc.isPresent()) {
+            throw new IllegalArgumentException(String.format("UserId '%s' is not in DataCenterConfig table", userId));
+        }
+        return optDc.get();
+    }
+
+    /**
+     * self-contained method to return Steps data
+     * @param fkUserId - String
+     * @param suppressReauth - boolean
+     * @return StepsData
+     * @throws IOException on API error
+     */
+    public StepsData getSteps(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
+
+        DataCenterConfig dc = getDataCenterConfig(fkUserId);
+        LocalDateTime dtNow = LocalDateTime.now();
+        OAuthCredentials creds = dc.getOAuthCredentials();
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
+        if (optCreds.isPresent()) {
+            return getSteps(dc, dtNow);
+        }
+        throw new IOException("No OAuthCredentials available for " + fkUserId);
+    }
+
+
+    /**
+     * self-contained method to return Sleep data
+     * @param fkUserId - String
+     * @param suppressReauth - boolean
+     * @return SleepData
+     * @throws IOException on API error
+     */
+    public SleepData getSleep(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
+        DataCenterConfig dc = getDataCenterConfig(fkUserId);
+        LocalDateTime dtNow = LocalDateTime.now();
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
+        if (optCreds.isPresent()) {
+            return getSleep(dc, dtNow);
+        }
+        throw new IOException("No OAuthCredentials available for " + fkUserId);
+    }
+
+    /**
+     * self-contained method to return Weight data
+     * @param fkUserId - String
+     * @param suppressReauth - boolean
+     * @return WeightData
+     * @throws IOException on API error
+     */
+    public WeightData getWeight(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
+        DataCenterConfig dc = getDataCenterConfig(fkUserId);
+        LocalDateTime dtNow = LocalDateTime.now();
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
+        if (optCreds.isPresent()) {
+            return getWeight(dc, dtNow);
+        }
+        throw new IOException("No OAuthCredentials available for " + fkUserId);
+    }
+
+    /**
+     * self-contained method to return ActivityLevel data
+     * @param fkUserId - String
+     * @param suppressReauth - boolean
+     * @return List<ActivityLevelData>
+     * @throws IOException on API error
+     */
+    public List<ActivityLevelData> getActivityLevel(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
+        DataCenterConfig dc = getDataCenterConfig(fkUserId);
+        LocalDateTime dtNow = LocalDateTime.now();
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
+        if (optCreds.isPresent()) {
+            return getActivityLevels(dc, dtNow);
+        }
+        throw new IOException("No OAuthCredentials available for " + fkUserId);
+    }
+
+
+    /**
+     * getSteps returns FitBet steps data for a single day
+     * @param dc - DataCenterConfig
+     * @param dt - LocalDateTime
+     * @return - StepsData
+     * @throws IOException on API error
+     */
+    public StepsData getSteps(DataCenterConfig dc, LocalDateTime dt)
              throws IOException, ExecutionException, InterruptedException {
 
         DynaUrl urlInfo = prepUrl(_config.getFitbitStepsUrl(), dt, _config.getFitbitStepsWindowDays());
-        StepsData apiResults = (StepsData) makeApiRequest(StepsData.class, urlInfo.getUrl(), oauth, dt);
+        StepsData apiResults = (StepsData) makeApiRequest(StepsData.class, urlInfo.getUrl(), dc.getOAuthCredentials(), dt);
 
         List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.STEPS);
 
         for(Steps steps : apiResults.getSteps()) {
             Optional<SimpleTrack> result = findStepsMatch(steps, dbResults);
-            SimpleTrack newTracker = new SimpleTrack(steps);
+            SimpleTrack newTracker = new SimpleTrack(steps, dc.getFkUserGuid());
             if (result.isPresent()) {
                 SimpleTrack dbWt = result.get();
                 newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
@@ -527,6 +627,20 @@ public class FitBitDataService {
     }
 
     /**
+     * helper method to determine if we should send the
+     * reauthorization email to a customer
+     * @param dc - DataCenterConfig
+     * @return boolean, true if we're in time to send
+     */
+    private boolean isInAuthWindow(DataCenterConfig dc) {
+        LocalDateTime dt = dc.getOAuthCredentials().getExpirationDt();
+        LocalDateTime dtLater = dt.plusDays(_config.getFitbitReauthWindowDays());
+        // if the expiration time plus the reauth window is AFTER
+        // right now, then we DO want to ask them to reauth
+        return LocalDateTime.now().isAfter(dtLater);
+    }
+
+    /**
      * helper method to notify users via email if they need to reauthorize
      * the application
      * @param dc - DataCenterConfig
@@ -534,34 +648,36 @@ public class FitBitDataService {
     private void notifyUser(DataCenterConfig dc) {
         // handle an auth error: is authorization email enabled?
         if (_config.isFitbitSendAuthEmail()) {
-            // yes, so see if we can find the user's email
 
-            _logger.info(StringUtils.formatMessage(String.format("Attempting auth email for user '%s'", dc.getFkUserGuid())));
-            Optional<User> opt = _userService.findById(dc.getFkUserGuid().toString());
-            if (opt.isPresent()) {
-                User user = opt.get();
-                if (!StringUtils.isNullOrEmpty(user.getEmail())) {
-                    String fname = "";
-                    List<Client> clientList = _clientService.findByEmail(user.getEmail());
-                    if (clientList.size() == 0) {
-                        _logger.error("No Client row with matching User.email of '%s'", user.getEmail());
-                    }
-                    else {
-                        Client client = clientList.get(0);
-                        fname = client.getFname();
-                    }
+            // are we within the time window to even send the email?
+            if (isInAuthWindow(dc)) {
 
-                    // notify user with email (emailService logs send errors)
-                    _emailService.sendTemplatedEmail(user.getEmail(), fname);
-                    _logger.info(StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", user.getEmail(), dc.getFkUserGuid())));
+                // yes, so see if we can find the user's email
+
+                _logger.info(StringUtils.formatMessage(String.format("Attempting auth email for user '%s'", dc.getFkUserGuid())));
+                Optional<User> opt = _userService.findById(dc.getFkUserGuid());
+                if (opt.isPresent()) {
+                    User user = opt.get();
+                    if (!StringUtils.isNullOrEmpty(user.getEmail())) {
+                        String fname = "";
+                        List<Client> clientList = _clientService.findByEmail(user.getEmail());
+                        if (clientList.size() == 0) {
+                            _logger.error("No Client row with matching User.email of '%s'", user.getEmail());
+                        } else {
+                            Client client = clientList.get(0);
+                            fname = client.getFname();
+                        }
+
+                        // notify user with email (emailService logs send errors)
+                        _emailService.sendTemplatedEmail(user.getEmail(), fname);
+                        _logger.info(StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", user.getEmail(), dc.getFkUserGuid())));
+                    } else {
+                        // however unlikely, we should at least log not having an email addy
+                        _logger.error(String.format("No email address in User table for userId: %s", dc.getFkUserGuid()));
+                    }
+                } else {
+                    _logger.error(String.format("User '%s' not found in User table.", dc.getFkUserGuid()));
                 }
-                else {
-                    // however unlikely, we should at least log not having an email addy
-                    _logger.error(String.format("No email address in User table for userId: %s", dc.getFkUserGuid()));
-                }
-            }
-            else {
-                _logger.error(String.format("User '%s' not found in User table.", dc.getFkUserGuid().toString()));
             }
         }
     }
@@ -591,9 +707,10 @@ public class FitBitDataService {
     }
 
     /**
-     *
-     * @param dc
-     * @param dt
+     * helper method to update the DataCenterConfig row after a successful
+     * authorization with the FitBit API
+     * @param dc - DataCenterConfig
+     * @param dt - LocalDateTime
      */
     private void updateDataCenterConfigSuccess(DataCenterConfig dc, LocalDateTime dt) {
         dc.setStatus(DataCenterConfig.PartnerStatus.Active.status);
@@ -603,72 +720,41 @@ public class FitBitDataService {
         _dcService.updateDataCenterConfig(dc);
     }
 
-    public Optional<OAuthCredentials> getCredentials(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
-        OAuthCredentials creds;
-
-        // do we already have the credentials in the cache?
-        if (!_authMap.containsKey(dc.getFkUserGuid())) {
-
-            // no, so see if we can create them
-            if (StringUtils.isNullOrEmpty(dc.getCredentials())) {
-
-                // can't create them... fatal error for this user
-                String msg = String.format("No OAuth credentials stored in database for user ID: %s", dc.getFkUserGuid().toString());
-                _logger.error(StringUtils.formatMessage(msg));
-
-                updateDataCenterConfigError(dc, dtNow);
-                return Optional.empty();
-            }
-            else {
-                // we have OAuth credentials
-                creds = OAuthCredentials.create(dc.getCredentials());
-            }
+    /**
+     * gets all available FitBit data for a single user
+     * @param userId - UUID
+     * @throws IOException on internal API calls
+     */
+    public void processUser(UUID userId, boolean suppressNotifications) throws IOException {
+        Optional<DataCenterConfig> optDc = _dcService.findById(userId.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
+        if (optDc.isPresent()) {
+            DataCenterConfig dc = optDc.get();
+            processAll(dc, LocalDateTime.now(), suppressNotifications);
         }
         else {
-            creds = _authMap.get(dc.getFkUserGuid());
+            throw new IllegalArgumentException(String.format("User %s not found in DataCenterConfig table", userId));
         }
+    }
 
-        // update or add to cache
-        _authMap.put(dc.getFkUserGuid(), creds);
-
-        return Optional.of(creds);
+    public void processAll(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
+        processAll(dc, dtNow, false);
     }
 
     /**
      * entry point for grabbing all available FitBit data for
      * a given user
      * @param dc - DataCenterConfig entry for use
-     * @throws IOException
+     * @throws IOException on internal API call errors
      */
-    public void processAll(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
-        // extract credentials from DataCenterConfig instance
-        Optional<OAuthCredentials> optCreds = getCredentials(dc, dtNow);
-        if (!optCreds.isPresent()) {
-            _logger.error(StringUtils.formatMessage("Could not extract credentials from DataCenterConfig for " + dc.getFkUserGuid()));
-            return;
-        }
+    public void processAll(DataCenterConfig dc, LocalDateTime dtNow, boolean suppressNotifications) throws IOException {
 
+        // check if they're valid, and if not, see if we can refresh
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressNotifications);
+        if (!optCreds.isPresent()) {
+            // shouldn't ever happen, but just in case
+            throw new IOException(String.format("UserId: %s, could not generate valid OAuthCredentials.", dc.getFkUserGuid()));
+        }
         OAuthCredentials creds = optCreds.get();
-        if (creds.isExpired()) {
-            // need to refresh
-            try {
-                updateDataCenterConfigDuringRefresh(dc, dtNow);
-                // if we can refresh token...
-                creds = refreshToken(creds);
-                if (creds != null) {
-                    // ...then we need to update the database as well
-                    dc.setCredentials(creds.toJson());
-                    updateDataCenterConfigSuccess(dc, dtNow);
-                }
-            }
-            catch(IOException | ExecutionException | InterruptedException ex) {
-                String msg = String.format("Could not refresh OAuth2 token for user '%s'", dc.getFkUserGuid());
-                _logger.error(msg, ex);
-                // send notification email if enabled
-                notifyUser(dc);
-                updateDataCenterConfigError(dc, dtNow);
-            }
-        }  // end if creds expired
 
         // if creds are not expired, our refresh was good, so
         // we can move forward with pulling data. If they ARE
@@ -677,7 +763,7 @@ public class FitBitDataService {
         if (!creds.isExpired()) {
             // we've valid got credentials, so let's fetch us some ActivityLevel data
             try {
-                getActivityLevels(dc, creds, dtNow);
+                getActivityLevels(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
@@ -686,7 +772,7 @@ public class FitBitDataService {
 
             // now fetch and save Sleep data
             try {
-                getSleep(dc, creds, dtNow);
+                getSleep(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("SleepData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
@@ -695,7 +781,7 @@ public class FitBitDataService {
 
             // fetch and save Steps data
             try {
-                getSteps(dc, creds, dtNow);
+                getSteps(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("StepsData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {
@@ -705,7 +791,7 @@ public class FitBitDataService {
 
             // fetch and save Weight data
             try {
-                getWeight(dc, creds, dtNow);
+                getWeight(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("WeightData saved for %s", dc.getFkUserGuid())));
             }
             catch(InterruptedException | ExecutionException ex) {

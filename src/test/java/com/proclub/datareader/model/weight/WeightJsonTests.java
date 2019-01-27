@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.time.Instant;
 
+import static com.proclub.datareader.TestConstants.TEST_USER_GUID1;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 import static org.hibernate.validator.internal.util.Contracts.assertNotNull;
@@ -21,7 +22,7 @@ public class WeightJsonTests {
         WeightData wtData = mapper.readValue(json, WeightData.class);
         assertNotNull(wtData);
 
-        SimpleTrack st = new SimpleTrack(wtData.getWeight().get(0));
+        SimpleTrack st = new SimpleTrack(wtData.getWeight().get(0), TEST_USER_GUID1.toString());
         assertNotNull(st);
 
         Weight wt = wtData.getWeight().get(0);

@@ -9,6 +9,7 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class Summary {
 
+    private long activeScore;
     private long activityCalories;
     private long caloriesBMR;
     private long caloriesOut;

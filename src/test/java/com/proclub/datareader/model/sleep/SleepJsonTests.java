@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static com.proclub.datareader.TestConstants.TEST_USER_GUID1;
 import static org.hibernate.validator.internal.util.Contracts.assertNotNull;
 
 public class SleepJsonTests {
@@ -18,7 +19,7 @@ public class SleepJsonTests {
         SleepData sleepData = mapper.readValue(json, SleepData.class);
         assertNotNull(sleepData);
 
-        SimpleTrack st = new SimpleTrack(sleepData.getSleep().get(0));
+        SimpleTrack st = new SimpleTrack(sleepData.getSleep().get(0), TEST_USER_GUID1.toString());
         assertNotNull(st);
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,7 +53,9 @@ public class SimpleTrackService {
     }
 
     public List<SimpleTrack> findAllByModifiedDateTimeBetween(LocalDateTime dtStart, LocalDateTime dtEnd) {
-        return _repo.findAllByModifiedDateTimeBetween(dtStart, dtEnd);
+        int start = (int) dtStart.toEpochSecond(ZoneOffset.ofHours(0));
+        int end = (int) dtEnd.toEpochSecond(ZoneOffset.ofHours(0));
+        return _repo.findAllByModifiedDateTimeBetween(start, end);
     }
 
     public List<SimpleTrack> findAllSorted(Sort sort) {
@@ -60,15 +63,19 @@ public class SimpleTrackService {
     }
 
     public List<SimpleTrack> findByTrackDate(LocalDateTime dtStart, LocalDateTime dtEnd) {
-        return _repo.findAllByTrackDateTimeBetween(dtStart, dtEnd);
+        int start = (int) dtStart.toEpochSecond(ZoneOffset.ofHours(0));
+        int end = (int) dtEnd.toEpochSecond(ZoneOffset.ofHours(0));
+        return _repo.findAllByTrackDateTimeBetween(start, end);
     }
 
     public List<SimpleTrack> findByUserTrackDateRange(String userId, LocalDateTime dtStart, LocalDateTime dtEnd,
                                                        SimpleTrack.Entity etype) {
         // we get to assume FitBit as the source system for this app
         int src = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
-        return _repo.findByTrackDateTimeBetweenAndFkUserGuidAndSourceSystemAndEntityTypeOrderByTrackDateTime(
-                            dtStart, dtEnd, userId, src, etype.entityValue);
+        int start = (int) dtStart.toEpochSecond(ZoneOffset.ofHours(0));
+        int end = (int) dtEnd.toEpochSecond(ZoneOffset.ofHours(0));
+        return _repo.findByFkUserGuidAndEntityTypeAndSourceSystemAndTrackDateTimeBetweenOrderByTrackDateTime(userId,
+                etype.entityValue, src, start, end);
     }
 
 }

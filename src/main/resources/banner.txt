@@ -1,0 +1,9 @@
+***************************************
+  ProClub Third Party API Reader
+        version ${application.version}
+***************************************
+
+***************************************
+  Developed by Blueprint Technologies
+***************************************
+

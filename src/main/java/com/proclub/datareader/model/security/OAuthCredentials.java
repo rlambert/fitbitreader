@@ -6,7 +6,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.scribejava.apis.fitbit.FitBitOAuth2AccessToken;
+import com.proclub.datareader.utils.StringUtils;
 import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -18,6 +21,7 @@ import java.time.temporal.ChronoUnit;
 public class OAuthCredentials {
 
     private static ObjectMapper _mapper = new ObjectMapper();
+    private static Logger _logger = LoggerFactory.getLogger(OAuthCredentials.class);
 
     @JsonProperty("AccessToken")
     private String accessToken;
@@ -35,7 +39,8 @@ public class OAuthCredentials {
     private String expiresAt;
 
     @JsonIgnore
-    private String fitbitExpiresAtFormat = "M/d/yyyy hh:mm:ss a";
+    private String fitbitExpiresAtFormat = "M/d/yyyy h:mm:ss a";
+
 
     @JsonIgnore
     private LocalDateTime expirationDt;
@@ -69,7 +74,13 @@ public class OAuthCredentials {
     @JsonIgnore
     public LocalDateTime getExpirationDateTime() {
         if (this.expirationDt == null) {
-            this.expirationDt = LocalDateTime.parse(this.expiresAt);
+            if (!StringUtils.isNullOrEmpty(this.expiresAt)) {
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern(this.fitbitExpiresAtFormat);
+                this.expirationDt = LocalDateTime.parse(this.expiresAt, fmt);
+            }
+            else {
+                _logger.error(String.format("expiresAt is null in OAuthCredentials for FitBit user: %s", this.accessUserId));
+            }
         }
         return this.expirationDt;
     }
