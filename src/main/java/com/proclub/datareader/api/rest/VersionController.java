@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -63,7 +64,7 @@ public class VersionController extends ApiBase {
         return addy;
     }
 
-    private String getVersion() throws IOException {
+    private String getVersion(HttpServletRequest req) throws IOException {
         String profileTxt = "default";
 
         // extract all active profiles
@@ -81,12 +82,13 @@ public class VersionController extends ApiBase {
         props.put("active.profiles", profileTxt);
         props.put("appname", _appName);
         props.put("version", _version);
-
-        return serialize(props);
+        props.put("Your IP Address", getIpAddress());
+        String json = serialize(props);
+        return this.generateJsonView(req, json);
     }
 
-    @GetMapping(value = {"","/"}, produces = "application/json")
-    public String version1() throws IOException {
-        return getVersion();
+    @GetMapping(value = {"","/"}, produces = "text/html")
+    public String version1(HttpServletRequest req) throws IOException {
+        return getVersion(req);
     }
 }

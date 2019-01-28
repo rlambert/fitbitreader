@@ -9,11 +9,7 @@ import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.DataCenterConfig;
 import com.proclub.datareader.dao.SimpleTrack;
 import com.proclub.datareader.dao.User;
-import com.proclub.datareader.model.activitylevel.ActivityLevelData;
 import com.proclub.datareader.model.security.OAuthCredentials;
-import com.proclub.datareader.model.sleep.SleepData;
-import com.proclub.datareader.model.steps.StepsData;
-import com.proclub.datareader.model.weight.WeightData;
 import com.proclub.datareader.services.DataCenterConfigService;
 import com.proclub.datareader.services.FitBitDataService;
 import com.proclub.datareader.services.UserService;
@@ -24,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -127,10 +124,6 @@ public class DatareaderApplicationTests {
             String qs = page.getBaseURL().getQuery();
             String code = qs.split("=")[1];
 
-            OAuthCredentials creds = _fbService.getAuth(code);
-            LocalDateTime lastChecked = LocalDateTime.now();
-            LocalDateTime modified = LocalDateTime.now();
-            String json = creds.toJson();
 
             int ts = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
 
@@ -144,10 +137,20 @@ public class DatareaderApplicationTests {
                 user = _userService.createUser(user);
             }
 
+            OAuthCredentials creds = _fbService.getAuth(code);
+            LocalDateTime lastChecked = LocalDateTime.now();
+            LocalDateTime modified = LocalDateTime.now();
+            String json = creds.toJson();
+
+
             DataCenterConfig dc;
             Optional<DataCenterConfig> optDc = _dcService.findById(user.getUserGuid(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
             if (optDc.isPresent()) {
                 dc = optDc.get();
+                dc.setOAuthCredentials(creds);
+                dc.setCredentials(json);
+                _dcService.updateDataCenterConfig(dc);
+                //creds = dc.getOAuthCredentials();
             }
             else {
                 dc = new DataCenterConfig(user.getUserGuid(), SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
@@ -156,17 +159,24 @@ public class DatareaderApplicationTests {
             }
 
             LocalDateTime dtStart = lastChecked.minusMinutes(5);
-            StepsData stepsData = _fbService.getSteps(dc, dtStart);
-            System.out.println(stepsData);
 
-            SleepData sleepData = _fbService.getSleep(dc, dtStart);
-            System.out.println(sleepData);
+            long startTs = Instant.now().toEpochMilli();
+            _fbService.processAll(dc, dtStart);
+            long endTs = Instant.now().toEpochMilli();
+            System.out.println(String.format("Total time for process all: %s", endTs - startTs));
 
-            WeightData weightData = _fbService.getWeight(dc, dtStart);
-            System.out.println(weightData);
 
-            List<ActivityLevelData> activityLevelList = _fbService.getActivityLevels(dc, dtStart);
-            System.out.println(activityLevelList);
+//            StepsData stepsData = _fbService.getSteps(dc, dtStart);
+//            System.out.println(stepsData);
+
+//            SleepData sleepData = _fbService.getSleep(dc, dtStart);
+//            System.out.println(sleepData);
+//
+//            WeightData weightData = _fbService.getWeight(dc, dtStart);
+//            System.out.println(weightData);
+
+//            List<ActivityLevelData> activityLevelList = _fbService.getActivityLevels(dc, dtStart);
+//            System.out.println(activityLevelList);
 
         }
         catch(Exception ex){

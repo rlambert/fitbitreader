@@ -11,6 +11,7 @@ package com.proclub.datareader.api;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proclub.datareader.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.View;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
@@ -44,6 +46,10 @@ public class ApiBase {
         return theClass.cast(_mapper.readValue(json, theClass));
     }
 
+    protected String generateJsonView(HttpServletRequest req, String json) throws IOException {
+        String html = StringUtils.readResource(this, "static/jsonview.html");
+        return html.replace("{json}", json).replace("{apiUrl}", req.getRequestURL());
+    }
 
     /**
      * all of our JSON-emitting APIs need to support an OPTIONS call for CORS

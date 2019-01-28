@@ -10,8 +10,6 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
-import static javax.persistence.GenerationType.IDENTITY;
-
 @Entity
 //@IdClass(DataCenterConfig.Pkey.class)
 @Table(name="DataCenterConfig", schema="dbo")
@@ -81,11 +79,12 @@ public class DataCenterConfig {
     }
     */
 
-    @Id
-    @GeneratedValue(strategy = IDENTITY)
-    @Column(name="id")
-    private int id;
+//    @Id
+//    @GeneratedValue(strategy = IDENTITY)
+//    @Column(name="id")
+//    private int id;
 
+    @Id
     @Column(name="fkUserGuid")
     private String fkUserGuid;
     public void setFkUserGuid(String uid) {

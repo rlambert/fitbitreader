@@ -5,7 +5,10 @@ import com.proclub.datareader.model.steps.Steps;
 import com.proclub.datareader.model.weight.Weight;
 import lombok.Data;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import java.time.*;
 import java.util.UUID;
 
@@ -159,10 +162,10 @@ public class SimpleTrack {
     private int valInt2;
 
     @Column(name = "ValTime")
-    private int valTime;
+    private int valTime = -1;
 
     @Column(name = "ValTime2")
-    private int valTime2;
+    private int valTime2 = -1;
 
     @Column(name = "DeviceReported")
     private byte deviceReported;
@@ -269,6 +272,14 @@ public class SimpleTrack {
         this.valTime = (int) sleep.getStartTimeEpochSeconds();
         this.valTime2 = (int) sleep.getEndTimeEpochSeconds();
         this.valInt2 = (int) sleep.getLevels().getSummary().getWake().getCount();
+
+        String dtStr = sleep.getDateOfSleep();   // YYYY-MM-DD
+        //         String dtStr = "2018-12-11T00:00:00.00Z";
+        if (!dtStr.contains(":")) {
+            dtStr += "T00:00:00.000";
+        }
+        LocalDateTime dtTrack = LocalDateTime.parse(dtStr);
+        this.trackDateTime = (int) dtTrack.toEpochSecond(ZoneOffset.ofHours(0));
     }
 
     /**
@@ -286,7 +297,7 @@ public class SimpleTrack {
         String dtStr = steps.getDateTime();   // YYYY-MM-DD
         //         String dtStr = "2018-12-11T00:00:00.00Z";
         if (!dtStr.contains(":")) {
-              dtStr += "T00:00:00.00Z";
+            dtStr += "T00:00:00.000";
         }
         LocalDateTime dtTrack = LocalDateTime.parse(dtStr);
         this.trackDateTime = (int) dtTrack.toEpochSecond(ZoneOffset.ofHours(0));
@@ -303,7 +314,13 @@ public class SimpleTrack {
         this.simpleTrackGuid = UUID.randomUUID().toString().toUpperCase();
         this.modifiedDateTime = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
         this.valDec = wt.getWeight();
-        this.trackDateTime = (int) (Instant.parse(wt.getDate() + "T" + wt.getTime() + ".00Z").toEpochMilli()/1000);
+        String dtStr = wt.getDate();   // YYYY-MM-DD
+        //         String dtStr = "2018-12-11T00:00:00.00Z";
+        if (!dtStr.contains(":")) {
+            dtStr += "T00:00:00.000";
+        }
+        LocalDateTime dtTrack = LocalDateTime.parse(dtStr);
+        this.trackDateTime = (int) dtTrack.toEpochSecond(ZoneOffset.ofHours(0));
         this.fkUserGuid = fkUserGuid.toUpperCase();
         this.sourceSystem = SourceSystem.FITBIT.sourceSystem;
     }

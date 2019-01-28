@@ -187,7 +187,7 @@ public class TestController extends ApiBase {
      * @return
      * @throws JsonProcessingException
      */
-    private String genResponse(Optional opt, String type, String id) throws JsonProcessingException {
+    private String genResponse(Optional opt, String type, String id, HttpServletRequest req) throws IOException {
         Map<String, Object> result = new HashMap<>();
         if (!opt.isPresent()) {
             String msg = String.format("error - %s ID: %s does not exist.}", type, id);
@@ -195,7 +195,7 @@ public class TestController extends ApiBase {
         } else {
             result.put("result", opt.get());
         }
-        return this.serialize(result);
+        return this.generateJsonView(req, this.serialize(result));
     }
 
     /**
@@ -223,107 +223,107 @@ public class TestController extends ApiBase {
         Map<String, String> result = new HashMap<>();
         _emailService.sendTemplatedEmail(toAddr, fname);
         result.put("result", "Email sucessfully sent to: " + toAddr);
-        String json = this.serialize(result);
-        return json;
+        return this.generateJsonView(req, this.serialize(result));
     }
 
-    @GetMapping(value = {"test/db"}, produces = "application/json")
+    @GetMapping(value = {"test/db"}, produces = "text/html")
     public String runDbTest(HttpServletRequest req) throws IOException {
         checkHost(req);
         int count = _dcService.findAllFitbitActive().size();
-        return "{\"totalActiveFitBitUsers\":\"" + count + "\"}";
+        String json = "{\"totalActiveFitBitUsers\":\"" + count + "\"}";
+        return this.generateJsonView(req, json);
     }
 
-    @GetMapping(value = {"test/db/datacenterconfig/{id}/{system}"}, produces = "application/json")
+    @GetMapping(value = {"test/db/datacenterconfig/{id}/{system}"}, produces = "text/html")
     public String runDbTestDc(@PathVariable UUID id, @PathVariable int system, HttpServletRequest req) throws IOException {
         checkHost(req);
         Optional<DataCenterConfig> opt = _dcService.findById(id.toString(), system);
-        return genResponse(opt, "DataCenterConfig", id.toString());
+        return genResponse(opt, "DataCenterConfig", id.toString(), req);
     }
 
-    @GetMapping(value = {"test/db/datacenterconfig/active"}, produces = "application/json")
-    public List<DataCenterConfig> runDbTestActiveDc(HttpServletRequest req) throws IOException {
+    @GetMapping(value = {"test/db/datacenterconfig/active"}, produces = "text/html")
+    public String runDbTestActiveDc(HttpServletRequest req) throws IOException {
         checkHost(req);
-        return _dcService.findAllFitbitActive();
+        return this.generateJsonView(req, this.serialize(_dcService.findAllFitbitActive()));
     }
 
 
-    @GetMapping(value = {"test/db/user/{id}"}, produces = "application/json")
+    @GetMapping(value = {"test/db/user/{id}"}, produces = "text/html")
     public String runDbTestUser(@PathVariable String id, HttpServletRequest req) throws IOException {
         checkHost(req);
         Optional<User> opt = _userService.findById(id);
-        return genResponse(opt, "User", id.toString());
+        return genResponse(opt, "User", id.toString(), req);
     }
 
 
-    @GetMapping(value = {"test/db/user/email/{address}"}, produces = "application/json")
-    public List<User> runDbTestUserEmail(@PathVariable String address, HttpServletRequest req) throws IOException {
+    @GetMapping(value = {"test/db/user/email/{address}"}, produces = "text/html")
+    public String runDbTestUserEmail(@PathVariable String address, HttpServletRequest req) throws IOException {
         checkHost(req);
         List<User> users = _userService.findByEmail(address);
-        return users;
+        return this.generateJsonView(req, this.serialize(users));
     }
 
 
-    @GetMapping(value = {"test/db/activitylevel/{id}"}, produces = "application/json")
+    @GetMapping(value = {"test/db/activitylevel/{id}"}, produces = "text/html")
     public String runDbTestActivityLevel(@PathVariable long id, HttpServletRequest req) throws IOException {
         checkHost(req);
 
         Optional<ActivityLevel> opt = _activityLevelService.findById(id);
-        return genResponse(opt, "ActivityLevel", String.valueOf(id));
+        return genResponse(opt, "ActivityLevel", String.valueOf(id), req);
     }
 
-    @GetMapping(value = {"test/db/client/{id}"}, produces = "application/json")
+    @GetMapping(value = {"test/db/client/{id}"}, produces = "text/html")
     public String runDbTestClient(@PathVariable int id, HttpServletRequest req) throws IOException {
         checkHost(req);
         Optional<Client> opt = _clientService.findById(id);
-        return genResponse(opt, "Client", String.valueOf(id));
+        return genResponse(opt, "Client", String.valueOf(id), req);
     }
 
-    @GetMapping(value = {"test/db/simpletrack/{id}"}, produces = "application/json")
+    @GetMapping(value = {"test/db/simpletrack/{id}"}, produces = "text/html")
     public String runDbTestTrack(@PathVariable UUID id, HttpServletRequest req) throws IOException {
         checkHost(req);
         Optional<SimpleTrack> opt = _trackService.findById(id.toString());
-        return genResponse(opt, "SimpleTrack", id.toString());
+        return genResponse(opt, "SimpleTrack", id.toString(), req);
     }
 
 
-    @GetMapping(value = {"test/db/datacenterconfig/template/{top}"}, produces = "application/json")
-    public Collection<Map<String, Object>> testDcTemplate(@PathVariable int top, HttpServletRequest req) {
+    @GetMapping(value = {"test/db/datacenterconfig/template/{top}"}, produces = "text/html")
+    public String testDcTemplate(@PathVariable int top, HttpServletRequest req) throws IOException {
         checkHost(req);
         Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from DataCenterConfig order by LastChecked desc;", top));
-        return rows;
+        return this.generateJsonView(req, this.serialize(rows));
     }
 
-    @GetMapping(value = {"test/db/user/template/{top}"}, produces = "application/json")
-    public Collection<Map<String, Object>> testUserTemplate(@PathVariable int top, HttpServletRequest req) {
+    @GetMapping(value = {"test/db/user/template/{top}"}, produces = "text/html")
+    public String testUserTemplate(@PathVariable int top, HttpServletRequest req) throws IOException {
         checkHost(req);
         Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from Users order by ModifiedDateTime desc;", top));
-        return rows;
+        return this.generateJsonView(req, this.serialize(rows));
     }
 
-    @GetMapping(value = {"test/db/activitylevel/template/{top}"}, produces = "application/json")
-    public Collection<Map<String, Object>> testActivityLevelTemplate(@PathVariable int top, HttpServletRequest req) {
+    @GetMapping(value = {"test/db/activitylevel/template/{top}"}, produces = "text/html")
+    public String testActivityLevelTemplate(@PathVariable int top, HttpServletRequest req) throws IOException, JsonProcessingException {
         checkHost(req);
         Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from ActivityLevel order by TrackDatetime desc;", top));
-        return rows;
+        return this.generateJsonView(req, this.serialize(rows));
     }
 
-    @GetMapping(value = {"test/db/simpletrack/template/{top}"}, produces = "application/json")
-    public Collection<Map<String, Object>> testSimpleTrackTemplate(@PathVariable int top, HttpServletRequest req) {
+    @GetMapping(value = {"test/db/simpletrack/template/{top}"}, produces = "text/html")
+    public String testSimpleTrackTemplate(@PathVariable int top, HttpServletRequest req) throws IOException {
         checkHost(req);
         Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from SimpleTrack order by TrackDatetime desc;", top));
-        return rows;
+        return this.generateJsonView(req, this.serialize(rows));
     }
 
-    @GetMapping(value = {"test/db/client/template/{top}"}, produces = "application/json")
-    public Collection<Map<String, Object>> testClientTemplate(@PathVariable int top, HttpServletRequest req) {
+    @GetMapping(value = {"test/db/client/template/{top}"}, produces = "text/html")
+    public String testClientTemplate(@PathVariable int top, HttpServletRequest req) throws IOException {
         checkHost(req);
         Collection<Map<String, Object>> rows = _jdbcTemplate.queryForList(String.format("select top %s * from Client order by Lname asc;;", top));
-        return rows;
+        return this.generateJsonView(req, this.serialize(rows));
     }
 
-    @GetMapping(value = {"test/oauth2"}, produces = "application/json")
-    public String testLogins(HttpServletRequest req) throws JsonProcessingException {
+    @GetMapping(value = {"test/oauth2"}, produces = "text/html")
+    public String testLogins(HttpServletRequest req) throws IOException {
         checkHost(req);
 
         List<DataCenterConfig> subs = _dcService.findAllFitbitActive();
@@ -344,16 +344,16 @@ public class TestController extends ApiBase {
             }
         }
         result.put("result", credsMap);
-        return this.serialize(result);
+        return this.generateJsonView(req, this.serialize(result));
     }
 
-    @GetMapping(value = {"test/credentials/{id}"}, produces = "application/json")
-    public String testLogins(@PathVariable UUID id, HttpServletRequest req) throws JsonProcessingException {
+    @GetMapping(value = {"test/credentials/{id}"}, produces = "text/html")
+    public String testLogins(@PathVariable UUID id, HttpServletRequest req) throws IOException {
         checkHost(req);
         Map<String, String> result = new HashMap<>();
         Optional<DataCenterConfig> optDc = _dcService.findById(id.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
         if (!optDc.isPresent()) {
-            return genResponse(optDc, "ActivityLevel", id.toString());
+            return genResponse(optDc, "ActivityLevel", id.toString(), req);
         }
         DataCenterConfig dc = optDc.get();
         try {
@@ -368,14 +368,14 @@ public class TestController extends ApiBase {
             result.put("result", msg);
             result.put("error", ex.getMessage());
         }
-        return this.serialize(result);
+        return this.generateJsonView(req, this.serialize(result));
     }
 
-    @GetMapping(value = {"test/steps/{userId}"}, produces = "application/json")
-    public String getSteps(@PathVariable String userId) {
+    @GetMapping(value = {"test/steps/{userId}"}, produces = "text/html")
+    public String getSteps(@PathVariable String userId, HttpServletRequest req) {
         try {
             StepsData data = _fitbitService.getSteps(userId.toString(), true);
-            return this.serialize(data);
+            return this.generateJsonView(req, this.serialize(data));
         }
         catch (IOException | InterruptedException | ExecutionException ex) {
             String msg = String.format("Error processing user %s, error: %s", userId, ex.getMessage());

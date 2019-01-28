@@ -73,6 +73,7 @@ public class FitBitDataService {
     private SimpleTrackService _trackService;           // get/put SimpleTrack table data
     private ClientService _clientService;               // gets Client table data
     private EmailService _emailService;                 // centralized email code
+    private AuditLogService _auditService;              // audit logs
     private final OAuth20Service _oauthService;         // this is a scribejava library instance
 
     private OkHttpClient _client = new OkHttpClient();  // for accessing web API
@@ -93,7 +94,7 @@ public class FitBitDataService {
     @Autowired
     public FitBitDataService(AppConfig config, UserService userService, DataCenterConfigService dcService,
                              ActivityLevelService activityLevelService, SimpleTrackService trackService,
-                             ClientService clientService, EmailService emailService) {
+                             ClientService clientService, EmailService emailService, AuditLogService auditService) {
         _config = config;
         _userService = userService;
         _dcService = dcService;
@@ -101,6 +102,7 @@ public class FitBitDataService {
         _trackService = trackService;
         _clientService = clientService;
         _emailService = emailService;
+        _auditService = auditService;
 
         // we need the config instance to build the library object,
         // so we instantiate the service object here
@@ -112,6 +114,12 @@ public class FitBitDataService {
     }
 
     // ----------------------------- methods
+
+    private void auditEvent(String fkUserId, AuditLog.Activity evt, String details) {
+        // String fkUserGuid, LocalDateTime dateTime, Activity activity, String details
+        AuditLog log = new AuditLog(fkUserId, LocalDateTime.now(), evt, details);
+        _auditService.createOrUpdate(log);
+    }
 
     /**
      * private helper method to extract JSON string from responses
@@ -374,6 +382,9 @@ public class FitBitDataService {
      */
     private Optional<SimpleTrack> findSleepMatch(Sleep sleep, List<SimpleTrack> dbResults) {
         String dtStr = sleep.getDateOfSleep();
+        if (!dtStr.contains(":")) {
+            dtStr += "T00:00:00.000";
+        }
         LocalDateTime dt = LocalDateTime.parse(dtStr);
         ZoneOffset zos = ZoneOffset.ofHours(0);
 
@@ -453,6 +464,8 @@ public class FitBitDataService {
             String msg = String.format("No OAuth credentials stored in database for user ID: %s", dc.getFkUserGuid());
             _logger.error(StringUtils.formatMessage(msg));
             updateDataCenterConfigError(dc, dtNow);
+            auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError,
+                    String.format("DataCentConfig has no credentials for '%s'", dc.getFkUserGuid()));
             return Optional.empty();
         }
         if (creds.isExpired()) {
@@ -465,9 +478,12 @@ public class FitBitDataService {
                     // ...then we need to update the database as well
                     dc.setCredentials(creds.toJson());
                     updateDataCenterConfigSuccess(dc, dtNow);
+                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshedCredentials,
+                            String.format("Refreshed OAuth2 credentials successfully for FitBit user '%s'", creds.getAccessUserId()));
                 }
                 else {
                     updateDataCenterConfigError(dc, dtNow);
+                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, String.format("Unsuccessful token refresh, credentials expired."));
                 }
             }
             catch(IOException | ExecutionException | InterruptedException ex) {
@@ -478,6 +494,7 @@ public class FitBitDataService {
                     notifyUser(dc);
                 }
                 updateDataCenterConfigError(dc, dtNow);
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, String.format("Unsuccessful token refresh: %s", ex.getMessage()));
                 return Optional.empty();
             }
         }  // end if creds expired
@@ -765,27 +782,33 @@ public class FitBitDataService {
             try {
                 getActivityLevels(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s", dc.getFkUserGuid())));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.ActivityLevelRead, String.format("Successfully updated ActivityLevels"));
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving ActivityLevelData for user '%s'", dc.getFkUserGuid()), ex));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, String.format("Error updating ActivityLevels: %s", ex.getMessage()));
             }
 
             // now fetch and save Sleep data
             try {
                 getSleep(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("SleepData saved for %s", dc.getFkUserGuid())));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.SleepRead, String.format("Successfully updated Sleep data"));
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Sleep data for user '%s'", dc.getFkUserGuid()), ex));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, String.format("Error updating Sleep: %s", ex.getMessage()));
             }
 
             // fetch and save Steps data
             try {
                 getSteps(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("StepsData saved for %s", dc.getFkUserGuid())));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.StepsRead, String.format("Successfully updated Steps data"));
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Steps data for user '%s'", dc.getFkUserGuid()), ex));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, String.format("Error updating Steps data: %s", ex.getMessage()));
             }
 
 
@@ -793,9 +816,11 @@ public class FitBitDataService {
             try {
                 getWeight(dc, dtNow);
                 _logger.info(StringUtils.formatMessage(String.format("WeightData saved for %s", dc.getFkUserGuid())));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.WeightRead, String.format("Successfully updated Weight data"));
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Weight data for user '%s'", dc.getFkUserGuid()), ex));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, String.format("Error updating Weight data: %s", ex.getMessage()));
             }
         } // end if not expired credentials
     }

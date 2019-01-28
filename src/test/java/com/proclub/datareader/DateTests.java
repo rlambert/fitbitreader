@@ -39,6 +39,21 @@ public class DateTests {
         dt2 = LocalDateTime.parse(dstr, fmt);
         assertNotNull(dt2);
         assertEquals(9, dt2.getDayOfMonth());
+
+        String dtStr = "2018-12-11";
+        //         String dtStr = "2018-12-11T00:00:00.00Z";
+        if (!dtStr.contains(":")) {
+            dtStr += "T00:00:00.000";
+        }
+        //LocalDateTime dtTrack = LocalDateTime.parse(dtStr);
+        //DateTimeFormatter fmt2 = DateTimeFormatter.ofPattern("yyyy-MM-ddThh:mm:ssZ");
+        //DateTimeFormatter fmt2 = DateTimeFormatter.ofPattern("yyyy-MM-ddThh:mm:ssZ");
+
+        //LocalDateTime dt = LocalDateTime.parse("2019-01-08T23:59:59.000");
+        //System.out.println(dt.toString());
+
+        LocalDateTime dtTrack = LocalDateTime.parse(dtStr);
+        System.out.println(dtTrack);
     }
 
     @Test

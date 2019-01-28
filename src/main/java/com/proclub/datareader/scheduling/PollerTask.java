@@ -3,6 +3,7 @@ package com.proclub.datareader.scheduling;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.DataCenterConfig;
+import com.proclub.datareader.services.AuditLogService;
 import com.proclub.datareader.services.DataCenterConfigService;
 import com.proclub.datareader.services.FitBitDataService;
 import com.proclub.datareader.utils.StringUtils;
@@ -24,7 +25,7 @@ public class PollerTask {
     private AppConfig _config;
     private DataCenterConfigService _dcService;
     private FitBitDataService _fitBitService;
-
+    private AuditLogService _auditService;
 
     private ObjectMapper _mapper = new ObjectMapper();
 
@@ -33,10 +34,11 @@ public class PollerTask {
      * @param config - AppConfig
      */
     @Autowired
-    public PollerTask(AppConfig config, DataCenterConfigService dcService, FitBitDataService fbService) {
+    public PollerTask(AppConfig config, DataCenterConfigService dcService, FitBitDataService fbService, AuditLogService auditService) {
         _config = config;
         _dcService = dcService;
         _fitBitService = fbService;
+        _auditService = auditService;
     }
 
     /**
