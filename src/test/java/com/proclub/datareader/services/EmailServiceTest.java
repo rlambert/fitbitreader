@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import javax.mail.MessagingException;
 import java.io.IOException;
 
 @RunWith(SpringRunner.class)
@@ -19,7 +20,7 @@ public class EmailServiceTest {
 
 
     @Test
-    public void testEmail() {
+    public void testEmail() throws MessagingException {
         // public void sendMessage(String toAddr, String fromAddr, String ccAddr, String bccAddr, String subject, String body) {
 
         String toAddr = "rlambert@bpcs.com";
@@ -31,7 +32,7 @@ public class EmailServiceTest {
     }
 
     @Test
-    public void testEmailTemplate() throws IOException {
+    public void testEmailTemplate() throws IOException, MessagingException {
         //String toAddr = "awithington@PROClub.com";
         //String fname = "Aaron";
         String toAddr = "rlambert@bpcs.com";

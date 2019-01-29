@@ -4,6 +4,7 @@ import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
@@ -42,7 +43,8 @@ public class EmailService {
      * @param subject - String
      * @param body - String
      */
-    public void sendMessage(String toAddr, String fromAddr, String ccAddr, String bccAddr, String subject, String body) {
+    public void sendMessage(String toAddr, String fromAddr, String ccAddr, String bccAddr, String subject, String body)
+            throws MailException, MessagingException {
 
         try {
             MimeMessage message = _sender.createMimeMessage();
@@ -63,8 +65,9 @@ public class EmailService {
             }
             _sender.send(message);
         }
-        catch (MessagingException ex) {
+        catch (MailException | MessagingException ex) {
             _logger.error(StringUtils.formatError(ex));
+            throw ex;
         }
     }
 
@@ -75,7 +78,7 @@ public class EmailService {
      * @param subject - String
      * @param body - String
      */
-    public void sendMessage(String toAddr, String fromAddr, String subject, String body) {
+    public void sendMessage(String toAddr, String fromAddr, String subject, String body) throws MessagingException {
         sendMessage(toAddr, fromAddr, null, null, subject, body);
     }
 
@@ -101,18 +104,13 @@ public class EmailService {
      * @param fname
      * @throws IOException
      */
-    public void sendTemplatedEmail(String toAddr, String fname) {
+    public void sendTemplatedEmail(String toAddr, String fname) throws IOException, MessagingException {
         String subject = _config.getAuthEmailSubject();
         String fromAddr = _config.getAuthEmailFromAddr();
         Map<String, String> map = new HashMap<>();
         map.put("{fname}", fname);
 
-        try {
-            String htmlBody = createEmailBody(map);
-            sendMessage(toAddr, fromAddr, subject, htmlBody);
-        }
-        catch (IOException ex) {
-            _logger.error(StringUtils.formatError(String.format("Error sending email to '%s'", toAddr), ex));
-        }
+        String htmlBody = createEmailBody(map);
+        sendMessage(toAddr, fromAddr, subject, htmlBody);
     }
 }

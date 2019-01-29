@@ -13,12 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.*;
 import com.github.scribejava.apis.FitbitApi20;
-import com.github.scribejava.apis.fitbit.FitBitOAuth2AccessToken;
 import com.github.scribejava.core.builder.ServiceBuilder;
-import com.github.scribejava.core.model.OAuth2AccessToken;
-import com.github.scribejava.core.model.OAuthRequest;
-import com.github.scribejava.core.model.Response;
-import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.proclub.datareader.api.ApiBase;
 import com.proclub.datareader.config.AppConfig;
@@ -35,11 +30,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 
+import javax.mail.MessagingException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+
+import static com.proclub.datareader.dao.DataCenterConfig.PartnerStatus.Active;
 
 
 @RestController
@@ -79,105 +79,6 @@ public class TestController extends ApiBase {
     }
 
 
-    private void getAuth() throws InterruptedException, ExecutionException, IOException {
-        // Replace these with your client id and secret fron your app
-        final String clientId = "22DFJ8";
-        final String clientSecret = "e212359c9f0945845dc744576f5d7789";
-        final OAuth20Service service = new ServiceBuilder(clientId)
-                .apiSecret(clientSecret)
-                .scope("activity profile") // replace with desired scope
-                //your callback URL to store and handle the authorization code sent by Fitbit
-                .callback("https://proclub-fitbit-dev.azurewebsites.net/")
-                .state("some_params")
-                .build(FitbitApi20.instance());
-
-        // Obtain the Authorization URL
-        System.out.println("Fetching the Authorization URL...");
-        final String authorizationUrl = service.getAuthorizationUrl();
-        System.out.println("Got the Authorization URL!");
-        System.out.println("Now go and authorize ScribeJava here:");
-        System.out.println(authorizationUrl);
-
-        System.out.println("And paste the authorization code here");
-        System.out.print(">>");
-        //final String code = in.nextLine();
-        //System.out.println();
-
-        final String code = "03bf6923babf1936791a4979ca8ee7c197481979";
-
-        // Trade the Request Token and Verfier for the Access Token
-        System.out.println("Trading the Request Token for an Access Token...");
-        final OAuth2AccessToken oauth2AccessToken = service.getAccessToken(code);
-        System.out.println("Got the Access Token!");
-        System.out.println("(if you're curious it looks like this: " + oauth2AccessToken
-                + ", 'rawResponse'='" + oauth2AccessToken.getRawResponse() + "')");
-        System.out.println();
-
-        if (!(oauth2AccessToken instanceof FitBitOAuth2AccessToken)) {
-            System.out.println("oauth2AccessToken is not instance of FitBitOAuth2AccessToken. Strange enough. exit.");
-            return;
-        }
-
-        final FitBitOAuth2AccessToken accessToken = (FitBitOAuth2AccessToken) oauth2AccessToken;
-        // Now let's go and ask for a protected resource!
-        // This will get the profile for this user
-        System.out.println("Now we're going to access a protected resource...");
-
-        final OAuthRequest request = new OAuthRequest(Verb.GET,
-                String.format("", accessToken.getUserId()));
-        request.addHeader("x-li-format", "json");
-
-        service.signRequest(accessToken, request);
-
-        final Response response = service.execute(request);
-        System.out.println();
-        System.out.println(response.getCode());
-        System.out.println(response.getBody());
-    }
-
-    private void headlessApproval() {
-        String baseUrl = "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=22DFJ8&redirect_uri=https%3A%2F%2Fproclub-fitbit-dev.azurewebsites.net%2F&scope=activity%20sleep%20weight&expires_in=604800";
-        WebClient client = new WebClient();
-        client.getOptions().setCssEnabled(false);
-        client.getOptions().setJavaScriptEnabled(false);
-        try {
-            HtmlPage page = client.getPage(baseUrl);
-            System.out.println(page.asXml());
-
-            HtmlDivision div = page.getFirstByXPath("//div[@class='internal']");
-            HtmlInput inputEmail = page.getFirstByXPath("//input[@tabindex='23']");
-
-            HtmlInput inputPwd = page.getFirstByXPath("//input[@tabindex='24']");
-
-            inputEmail.setValueAttribute("rosswlambert@gmail.com");
-            inputPwd.setValueAttribute("RockNRollIn2019!");
-
-            //get the enclosing form
-            HtmlForm loginForm = inputPwd.getEnclosingForm();
-
-            //submit the form
-            client.getOptions().setJavaScriptEnabled(true);
-            page = client.getPage(loginForm.getWebRequest(null));
-            System.out.println(page.getWebResponse().getStatusCode());
-
-            System.out.println("-------------------------");
-            System.out.println(page.asXml());
-
-            HtmlCheckBoxInput inputSelectAll = page.getFirstByXPath("//input[@id='selectAllScope']");
-            inputSelectAll.setChecked(true);
-
-            //get the enclosing form
-            HtmlForm allowForm = inputSelectAll.getEnclosingForm();
-            HtmlButton allowBtn = page.getFirstByXPath("//button[@id='allow-button']");
-
-            page = client.getPage(allowForm.getWebRequest(allowBtn));
-
-            System.out.println("-------------------------");
-            System.out.println(page.asXml());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
 
     /**
      * helper method to generate a JSON response from an Optional
@@ -221,30 +122,56 @@ public class TestController extends ApiBase {
     public String runMailTest(@PathVariable String toAddr, @PathVariable String fname, HttpServletRequest req) throws IOException {
         checkHost(req);
         Map<String, String> result = new HashMap<>();
-        _emailService.sendTemplatedEmail(toAddr, fname);
-        result.put("result", "Email sucessfully sent to: " + toAddr);
+        try {
+            _emailService.sendTemplatedEmail(toAddr, fname);
+            result.put("result", "Email sucessfully sent to: " + toAddr);
+        }
+        catch(MessagingException ex) {
+            result.put("result", String.format("Error sending to: %s, %s", toAddr, ex.getMessage()));
+        }
+        catch(Exception ex) {
+            result.put("result", String.format("Error sending to: %s, %s", toAddr, ex.getMessage()));
+        }
+
         return this.generateJsonView(req, this.serialize(result));
     }
 
     @GetMapping(value = {"test/db"}, produces = "text/html")
     public String runDbTest(HttpServletRequest req) throws IOException {
         checkHost(req);
-        int count = _dcService.findAllFitbitActive().size();
-        String json = "{\"totalActiveFitBitUsers\":\"" + count + "\"}";
-        return this.generateJsonView(req, json);
+        try {
+            int count = _dcService.findAllFitbitActive().size();
+            String json = "{\"totalActiveFitBitUsers\":\"" + count + "\"}";
+            return this.generateJsonView(req, json);
+        }
+        catch (IOException ex) {
+            return this.generateJsonView(req, String.format("{\"error\":\"s%\"}", ex.getMessage()));
+        }
     }
 
     @GetMapping(value = {"test/db/datacenterconfig/{id}/{system}"}, produces = "text/html")
     public String runDbTestDc(@PathVariable UUID id, @PathVariable int system, HttpServletRequest req) throws IOException {
         checkHost(req);
-        Optional<DataCenterConfig> opt = _dcService.findById(id.toString(), system);
-        return genResponse(opt, "DataCenterConfig", id.toString(), req);
+        try {
+            Optional<DataCenterConfig> opt = _dcService.findById(id.toString(), system);
+            return genResponse(opt, "DataCenterConfig", id.toString(), req);
+        }
+        catch (IOException ex) {
+            return this.generateJsonView(req, String.format("{\"error\":\"s%\"}", ex.getMessage()));
+        }
+
     }
 
     @GetMapping(value = {"test/db/datacenterconfig/active"}, produces = "text/html")
     public String runDbTestActiveDc(HttpServletRequest req) throws IOException {
         checkHost(req);
-        return this.generateJsonView(req, this.serialize(_dcService.findAllFitbitActive()));
+        try {
+            return this.generateJsonView(req, this.serialize(_dcService.findAllFitbitActive()));
+        }
+        catch (Exception ex) {
+            _logger.error(StringUtils.formatError(ex));
+            return this.generateJsonView(req, this.genMessage("error", ex.getMessage()));
+        }
     }
 
 
@@ -347,7 +274,7 @@ public class TestController extends ApiBase {
         return this.generateJsonView(req, this.serialize(result));
     }
 
-    @GetMapping(value = {"test/credentials/{id}"}, produces = "text/html")
+    @GetMapping(value = {"/process/{id}"}, produces = "text/html")
     public String testLogins(@PathVariable UUID id, HttpServletRequest req) throws IOException {
         checkHost(req);
         Map<String, String> result = new HashMap<>();
@@ -358,11 +285,11 @@ public class TestController extends ApiBase {
         DataCenterConfig dc = optDc.get();
         try {
             _fitbitService.processAll(dc, LocalDateTime.now());
-            String msg = String.format("Finished processing API data for %s", dc.getFkUserGuid());
+            String msg = String.format("Successfully processed API data for %s", dc.getFkUserGuid());
             _logger.info(msg);
             result.put("result", msg);
         }
-        catch (IOException ex) {
+        catch (Exception ex) {
             String msg = String.format("An error occurred while processing API data for %s", dc.getFkUserGuid());
             _logger.error(msg, ex);
             result.put("result", msg);
@@ -371,20 +298,137 @@ public class TestController extends ApiBase {
         return this.generateJsonView(req, this.serialize(result));
     }
 
-    @GetMapping(value = {"test/steps/{userId}"}, produces = "text/html")
-    public String getSteps(@PathVariable String userId, HttpServletRequest req) {
+    @GetMapping(value = {"/steps/{userId}/{reauth}"}, produces = "text/html")
+    public String getSteps(@PathVariable String userId, String reauth, HttpServletRequest req) throws IOException {
         try {
-            StepsData data = _fitbitService.getSteps(userId.toString(), true);
+            boolean doReauth = Boolean.parseBoolean(reauth);
+            StepsData data = _fitbitService.getSteps(userId.toString(), doReauth);
             return this.generateJsonView(req, this.serialize(data));
         }
         catch (IOException | InterruptedException | ExecutionException ex) {
-            String msg = String.format("Error processing user %s, error: %s", userId, ex.getMessage());
-            throw HttpClientErrorException.create(HttpStatus.INTERNAL_SERVER_ERROR, msg, null, msg.getBytes(), null);
+            String msg = String.format("{ \"error\" : \"Error processing user %s, error: %s\"}", userId, ex.getMessage());
+            return this.generateJsonView(req, msg);
+            //throw HttpClientErrorException.create(HttpStatus.INTERNAL_SERVER_ERROR, msg, null, msg.getBytes(), null);
         }
         catch (IllegalArgumentException ex) {
-            String msg = String.format("User %s does not exist in DataCenterConfig table.", userId);
-            throw HttpClientErrorException.create(HttpStatus.NOT_FOUND, msg, null, msg.getBytes(), null);
+            String msg = String.format("{ \"error\" : \"User %s does not exist in DataCenterConfig table.\"}", userId);
+            return this.generateJsonView(req, msg);
+        }
+        catch (Exception ex) {
+            String msg = String.format("An error occurred while processing API data for %s: %s", userId, ex.getMessage());
+            _logger.error(msg, ex);
+            return this.generateJsonView(req, this.genMessage("error", msg));
         }
     }
 
+    @GetMapping(value = {"/auth2data"}, produces = "text/html")
+    public String doItAll(HttpServletRequest req) throws IOException {
+        Map<String, String> results = new TreeMap<>();
+
+        final String clientId = _config.getFitbitClientId();
+        final String clientSecret = _config.getFitbitClientSecret();
+
+        final OAuth20Service service = new ServiceBuilder(clientId)
+                .apiSecret(clientSecret)
+                .scope(_config.getFitbitScope())
+                //your callback URL to store and handle the authorization code sent by Fitbit
+                .callback(_config.getFitbitCallbackUrl())
+                .build(FitbitApi20.instance());
+
+        // Obtain the Authorization URL
+        final String authUrl = service.getAuthorizationUrl();
+
+        WebClient client = new WebClient();
+        client.getOptions().setCssEnabled(false);
+        client.getOptions().setJavaScriptEnabled(false);
+        try {
+            HtmlPage page = client.getPage(authUrl);
+            results.put(Instant.now().toEpochMilli() + ": " + "Loaded Auth URL", "success - " + authUrl);
+
+            HtmlDivision div = page.getFirstByXPath("//div[@class='internal']");
+            HtmlInput inputEmail = page.getFirstByXPath("//input[@tabindex='23']");
+            HtmlInput inputPwd = page.getFirstByXPath("//input[@tabindex='24']");
+
+            inputEmail.setValueAttribute(_config.getFitbitTestUser());
+            inputPwd.setValueAttribute(_config.getFitbitTestPassword());
+
+            //get the enclosing form
+            HtmlForm loginForm = inputPwd.getEnclosingForm() ;
+
+            //submit the form
+            client.getOptions().setJavaScriptEnabled(true);
+            page = client.getPage(loginForm.getWebRequest(null));
+
+            results.put(Instant.now().toEpochMilli() + ": " + "Submitted login form", "success");
+
+            if (!page.getBaseURL().toString().contains(_config.getFitbitCallbackUrl())) {
+
+                HtmlCheckBoxInput inputSelectAll = page.getFirstByXPath("//input[@id='selectAllScope']");
+                inputSelectAll.setChecked(true);
+
+                //get the enclosing form
+                HtmlForm allowForm = inputSelectAll.getEnclosingForm();
+                HtmlButton allowBtn = page.getFirstByXPath("//button[@id='allow-button']");
+
+                page = client.getPage(allowForm.getWebRequest(allowBtn));
+                results.put(Instant.now().toEpochMilli() + ": " + "Fetched Reauth Page", "success");
+            }
+
+            String qs = page.getBaseURL().getQuery();
+            String code = qs.split("=")[1];
+
+            int ts = (int) LocalDateTime.now().toEpochSecond(ZoneOffset.ofHours(0));
+
+            User user;
+            List<User> users = _userService.findByEmail(_config.getFitbitTestUser());
+            if (users.size() > 0) {
+                user = users.get(0);
+                results.put(Instant.now().toEpochMilli() + ": " + "Found user", "success - " + _config.getFitbitTestUser());
+            }
+            else {
+                user = new User(ts, 1, _config.getFitbitTestUser(), "", "", "98801", UUID.randomUUID().toString());
+                user = _userService.createUser(user);
+                results.put(Instant.now().toEpochMilli() + ": " + "Created new user", "success - " + _config.getFitbitTestUser());
+            }
+
+            OAuthCredentials creds = _fitbitService.getAuth(code);
+            results.put(Instant.now().toEpochMilli() + ": " + "Got OAuth token", "success");
+
+            LocalDateTime lastChecked = LocalDateTime.now();
+            LocalDateTime modified = LocalDateTime.now();
+            String json = creds.toJson();
+
+            DataCenterConfig dc;
+            Optional<DataCenterConfig> optDc = _dcService.findById(user.getUserGuid(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
+            if (optDc.isPresent()) {
+                dc = optDc.get();
+                dc.setOAuthCredentials(creds);
+                dc.setCredentials(json);
+                _dcService.updateDataCenterConfig(dc);
+                results.put(Instant.now().toEpochMilli() + ": " + "Found DataCenterConfig", "success - " + dc.getFkUserGuid());
+                //creds = dc.getOAuthCredentials();
+            }
+            else {
+                dc = new DataCenterConfig(user.getUserGuid(), SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
+                        0, Active.status, "OK", 0, json, modified);
+                dc = _dcService.createDataCenterConfig(dc);
+                results.put(Instant.now().toEpochMilli() + ": " + "Created new DataCenterConfig", "success - " + dc.getFkUserGuid());
+            }
+
+            LocalDateTime dtStart = lastChecked.minusMinutes(5);
+
+            long startTs = Instant.now().toEpochMilli();
+
+            results.put(Instant.now().toEpochMilli() + ": " + "Starting FitBit API requests...", "success");
+            _fitbitService.processAll(dc, dtStart);
+            long endTs = Instant.now().toEpochMilli();
+            results.put(Instant.now().toEpochMilli() + ": " + "Finished FitBit API requests", String.format("success, elapsed time: %s milliseconds", (endTs - startTs)) );
+        }
+        catch(Exception ex){
+            results.put(Instant.now().toEpochMilli() + ": " + "Error", ex.getMessage());
+            results.put(Instant.now().toEpochMilli() + ": " + "Stack", StringUtils.getStackTrace(ex));
+        }
+
+        return this.generateJsonView(req, this.serialize(results));
+    }
 }

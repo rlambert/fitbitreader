@@ -22,6 +22,8 @@ import org.springframework.web.servlet.View;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class ApiBase {
@@ -48,7 +50,17 @@ public class ApiBase {
 
     protected String generateJsonView(HttpServletRequest req, String json) throws IOException {
         String html = StringUtils.readResource(this, "static/jsonview.html");
-        return html.replace("{json}", json).replace("{apiUrl}", req.getRequestURL());
+        String apiUrl = req.getRequestURI();
+        if (apiUrl.length() > 100) {
+            apiUrl = apiUrl.substring(0, 100) + "...";
+        }
+        return html.replace("{json}", json).replace("{apiUrl}", apiUrl);
+    }
+
+    protected String genMessage(String name, String message) throws JsonProcessingException {
+        Map<String, String> msgMap = new HashMap<>();
+        msgMap.put(name, message);
+        return this.serialize(msgMap);
     }
 
     /**

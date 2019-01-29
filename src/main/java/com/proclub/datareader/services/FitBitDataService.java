@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import javax.mail.MessagingException;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -686,14 +687,35 @@ public class FitBitDataService {
                         }
 
                         // notify user with email (emailService logs send errors)
-                        _emailService.sendTemplatedEmail(user.getEmail(), fname);
-                        _logger.info(StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", user.getEmail(), dc.getFkUserGuid())));
-                    } else {
+                        try {
+                            _emailService.sendTemplatedEmail(user.getEmail(), fname);
+                            String msg = StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", user.getEmail(), dc.getFkUserGuid()));
+                            _logger.info(StringUtils.formatMessage(msg));
+                            auditEvent(dc.getFkUserGuid(), AuditLog.Activity.ReauthEmail, msg);
+                        }
+                        catch (IOException ex) {
+                            String msg = String.format("Email server error while sending to %s", user.getEmail());
+                            _logger.error(StringUtils.formatError(msg, ex));
+                            auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg + " " + ex.getMessage());
+                        }
+                        catch (MessagingException ex) {
+                            String msg = String.format("Email server authentication or connection error while sending to %s", user.getEmail());
+                            _logger.error(StringUtils.formatError(msg, ex));
+                            auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg + " " + ex.getMessage());
+                        }
+
+
+                    }
+                    else {
                         // however unlikely, we should at least log not having an email addy
-                        _logger.error(String.format("No email address in User table for userId: %s", dc.getFkUserGuid()));
+                        String msg = String.format("No email address in User table for userId: %s", dc.getFkUserGuid());
+                        _logger.error(msg);
+                        auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg);
                     }
                 } else {
-                    _logger.error(String.format("User '%s' not found in User table.", dc.getFkUserGuid()));
+                    String msg = String.format("User '%s' not found in User table.", dc.getFkUserGuid());
+                    _logger.error(msg);
+                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg);
                 }
             }
         }

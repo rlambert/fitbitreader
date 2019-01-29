@@ -87,7 +87,7 @@ public class StringUtils {
      * @param ex - Throwable
      * @return - String
      */
-    private static String getStackTrace(Throwable ex)
+    public static String getStackTrace(Throwable ex)
     {
         final int MAX_STACK             = 2048;
         final Writer result 			= new StringWriter();

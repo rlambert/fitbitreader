@@ -55,7 +55,8 @@ public class BasicConfiguration extends WebSecurityConfigurerAdapter {
 
                 .antMatchers("/actuator/**",
                         "/admin/**",
-                        "/audit/**")
+                        "/audit/**",
+                        "/userdata/**")
                 .authenticated()
                 .and().formLogin()
                 //.loginPage("/login")
