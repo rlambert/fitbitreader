@@ -4,6 +4,7 @@ import lombok.Data;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 import static javax.persistence.GenerationType.IDENTITY;
 
@@ -46,10 +47,9 @@ public class AuditLog {
 
     public AuditLog() {}
 
-
     public AuditLog(String fkUserGuid, LocalDateTime dateTime, Activity activity, String details) {
         this.fkUserGuid = fkUserGuid;
-        this.dateTime = dateTime;
+        this.dateTime = dateTime.truncatedTo(ChronoUnit.SECONDS);
         this.activity = activity.name();
         this.details = details;
     }

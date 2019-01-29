@@ -9,9 +9,9 @@ import org.springframework.context.annotation.Configuration;
 @SpringBootApplication
 @Configuration
 //@EnableAdminServer
-public class DatareaderApplication {
+public class DataReaderApplication {
 
-    private static Logger _logger = LoggerFactory.getLogger(DatareaderApplication.class);
+    private static Logger _logger = LoggerFactory.getLogger(DataReaderApplication.class);
 
     public static void main(String[] args) {
         _logger.info("Starting...");
@@ -19,7 +19,7 @@ public class DatareaderApplication {
         for (String arg : args) {
             _logger.info(String.format(">>>>>  arg: %s", arg));
         }
-        SpringApplication.run(DatareaderApplication.class, args);
+        SpringApplication.run(DataReaderApplication.class, args);
     }
 
 }

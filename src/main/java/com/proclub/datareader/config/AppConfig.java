@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix="app")
 @Validated
 @Data
+//@PropertySource("classpath:application-${spring.profiles.active}.properties")
 public class AppConfig {
 
     /**

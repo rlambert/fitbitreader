@@ -5,12 +5,12 @@
     <title>Blueprint Technologies JSON Viewer</title>
     <link href="https://fonts.googleapis.com/css?family=Chivo:900" rel="stylesheet"
       type="text/css">
-    <link rel="stylesheet" href="css/jsonview.css">
+    <link rel="stylesheet" href="/css/jsonview.css">
     <style type="text/css">
 			body { font-family: 'Helvetica Neue', Helvetica, Arial, serif; 
         font-size: 1em; 
         line-height: 1.5; 
-        background: #8D8D8D url(media/body-bg.png) 0 0 repeat; 
+        background: #8D8D8D url(/media/body-bg.png) 0 0 repeat;
         text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);      	
       }
       header h1 { margin-top: -4px; 
@@ -20,7 +20,7 @@
     </style>
   </head>
   <body>
-    <header> <img src="media/bplogosmall.png" height="62px;" width="80px">
+    <header> <img src="/media/bplogosmall.png" height="62px;" width="80px">
       <h1>REST API Result Viewer</h1>
       <h2> API URL: {apiUrl} </h2>
     </header>
@@ -29,7 +29,7 @@
     </div>
 
     <div id="json"></div>
-    <script type="text/javascript" src="js/renderjson.js"></script>
+    <script type="text/javascript" src="/js/renderjson.js"></script>
     <script>
         var apiJson = {json};
         renderjson.set_icons('+', '-');

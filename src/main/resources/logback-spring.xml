@@ -5,7 +5,7 @@
     <springProperty scope="context" name="appName" source="spring.application.name"/>
     <property name="FOLDER_HOME" value="logs" />
 
-    <springProfile name="test,staging,prod">
+    <springProfile name="dev,test,staging,prod">
         <appender name="FileLog" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${FOLDER_HOME}/${appName}.log</file>
             <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
@@ -28,7 +28,7 @@
     </springProfile>
 
     <!-- Configuration when the profile is dev -->
-    <springProfile name="unittest,dev">
+    <springProfile name="unittest,dev,test">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
                 <!--<pattern>%d %5p | %t | %-55logger{55} | %m %n</pattern> -->

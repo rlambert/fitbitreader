@@ -17,51 +17,51 @@ public class AuditLogService {
     /**
      * ctor
      *
-     * @param repo - ActivityLevelRepo
+     * @param repo -     private AuditLogRepo _repo;
      */
     @Autowired
     public AuditLogService(AuditLogRepo repo) {
         _repo = repo;
     }
 
-    List<AuditLog> findByUser(String uid) {
+    public List<AuditLog> findByUser(String uid) {
         return _repo.findByFkUserGuid(uid);
     }
-    List<AuditLog> findByUserAndDateTime(String uid, LocalDateTime dtStart) {
+    public List<AuditLog> findByUserAndDateTime(String uid, LocalDateTime dtStart) {
         return _repo.findByFkUserGuidAndDateTimeAfter(uid, dtStart);
     }
 
-    List<AuditLog> findByUserAndDateAndActivity(String uid, LocalDateTime dtStart, String activity) {
+    public List<AuditLog> findByUserAndDateAndActivity(String uid, LocalDateTime dtStart, String activity) {
         return _repo.findByFkUserGuidAndDateTimeAfterAndActivityOrderByDateTimeDesc(uid, dtStart, activity);
     }
 
-    List<AuditLog> findbyUserAndDateRangeAndActivity (String uid, LocalDateTime dtStart, LocalDateTime dtEnd, String activity) {
+    public List<AuditLog> findbyUserAndDateRangeAndActivity (String uid, LocalDateTime dtStart, LocalDateTime dtEnd, String activity) {
         return _repo.findByFkUserGuidAndDateTimeBetweenAndActivityOrderByDateTimeDesc(uid, dtStart, dtEnd, activity);
     }
 
-    List<AuditLog> findByDateTimeAfter(LocalDateTime dtStart) {
+    public List<AuditLog> findByDateTimeAfter(LocalDateTime dtStart) {
         return _repo.findByDateTimeAfter(dtStart);
     }
 
-    List<AuditLog> findByDateRange(LocalDateTime dtStart, LocalDateTime dtEnd) {
+    public List<AuditLog> findByDateRange(LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findByDateTimeBetween(dtStart, dtEnd);
     }
 
-    List<AuditLog> findByActivityAndDateTime(String activity, LocalDateTime dtStart) {
+    public List<AuditLog> findByActivityAndDateTime(String activity, LocalDateTime dtStart) {
         return _repo.findByActivityAndDateTimeAfter(activity, dtStart);
     }
-    List<AuditLog> findByActivityAndDateRange(String activity, LocalDateTime dtStart, LocalDateTime dtEnd) {
+    public List<AuditLog> findByActivityAndDateRange(String activity, LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findByActivityAndDateTimeBetween(activity, dtStart, dtEnd);
     }
-    List<AuditLog> findByUserAndActivityAndDateRange(String uid, String activity, LocalDateTime dtStart, LocalDateTime dtEnd) {
+    public List<AuditLog> findByUserAndActivityAndDateRange(String uid, String activity, LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findByFkUserGuidAndActivityAndDateTimeBetween(uid, activity, dtStart, dtEnd);
     }
 
-    Optional<AuditLog> findById(long id) {
+    public Optional<AuditLog> findById(long id) {
         return _repo.findById(id);
     }
 
-    AuditLog createOrUpdate(AuditLog log) {
+    public AuditLog createOrUpdate(AuditLog log) {
         return _repo.save(log);
     }
 
