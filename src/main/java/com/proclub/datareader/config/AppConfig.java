@@ -32,10 +32,7 @@ public class AppConfig {
     private String fitbitStepsUrl;
     private String fitbitActivityUrl;
 
-    private int fitbitActivityLevelWindowDays;
-    private int fitbitSleepWindowDays;
-    private int fitbitWeightWindowDays;
-    private int fitbitStepsWindowDays;
+    private int fitbitQueryWindow;
     private int fitbitReauthWindowDays;
 
     private boolean pollEnabled;

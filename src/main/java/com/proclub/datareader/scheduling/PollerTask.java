@@ -2,6 +2,7 @@ package com.proclub.datareader.scheduling;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proclub.datareader.config.AppConfig;
+import com.proclub.datareader.dao.AuditLog;
 import com.proclub.datareader.dao.DataCenterConfig;
 import com.proclub.datareader.services.AuditLogService;
 import com.proclub.datareader.services.DataCenterConfigService;
@@ -14,7 +15,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
@@ -41,6 +44,7 @@ public class PollerTask {
         _auditService = auditService;
     }
 
+
     /**
      * hourly task will fire at 5 minutes after the hour
      */
@@ -48,22 +52,33 @@ public class PollerTask {
     @Scheduled(cron = "${app.pollcron}")
     public void dataSourcePoller() {
         if ((!_config.isUnittest()) && (_config.isPollEnabled())) {
-            LocalDateTime dt = LocalDateTime.now();
+            LocalDateTime dtEnd = LocalDateTime.now();
             _logger.info("*** Poller Task Started ****");
-            _logger.info(dt.toString());
+            _logger.info(dtEnd.toString());
             _logger.info("");
 
-            List<DataCenterConfig> subs = _dcService.findAll();
+            LocalDateTime dtMidnight = LocalDateTime.of(dtEnd.getYear(), dtEnd.getMonth(), dtEnd.getDayOfMonth(), 0, 0, 0, 0);
+            // go back in time a configurable number of days
+            LocalDateTime dtStart = dtMidnight.minusDays(_config.getFitbitQueryWindow());
 
+            List<DataCenterConfig> subs = _dcService.findAllFitbitActive();
+
+            LocalDateTime dtProcessStart = LocalDateTime.now();
             for(DataCenterConfig dc : subs) {
                 try {
-                    _fitBitService.processAll(dc, dt);
+                    _fitBitService.processAll(dc, dtStart, dtEnd);
                 }
                 catch (IOException ex) {
                     _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
                 }
 
             }
+            LocalDateTime dtProcessEnd = LocalDateTime.now();
+            Duration duration = Duration.between(dtProcessStart, dtProcessEnd);
+
+            String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), duration.get(ChronoUnit.MINUTES));
+            AuditLog log = new AuditLog("00000000-0000-0000-0000-000000000000", LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
+            _auditService.createOrUpdate(log);
 
             _logger.info(String.format("Poll complete: %s total users processed.", subs.size()));
         }

@@ -111,11 +111,9 @@ public class TestController extends ApiBase {
         }
     }
 
-    @GetMapping(value = {"test/full/{days:[\\d]+}"}, produces = "text/html")
-    public String runTest(@PathVariable int days, HttpServletRequest req) throws HttpClientErrorException {
-        checkHost(req);
-
-        return "OK";
+    @GetMapping(value = {"test/error"}, produces = "text/html")
+    public String testError() {
+        throw HttpClientErrorException.create(HttpStatus.INTERNAL_SERVER_ERROR, "This is a test error.", null, null, null);
     }
 
     @GetMapping(value = {"test/email/{toAddr}/{fname}"}, produces = "text/html")
@@ -274,9 +272,11 @@ public class TestController extends ApiBase {
         return this.generateJsonView(req, this.serialize(result));
     }
 
-    @GetMapping(value = {"/process/{id}"}, produces = "text/html")
-    public String testLogins(@PathVariable UUID id, HttpServletRequest req) throws IOException {
+    @GetMapping(value = {"/process/{id}/{dtStartStr}/{dtEndStr}"}, produces = "text/html")
+    public String processOne(@PathVariable UUID id, @PathVariable String dtStartStr, @PathVariable String dtEndStr,
+                             HttpServletRequest req) throws IOException {
         checkHost(req);
+
         Map<String, String> result = new HashMap<>();
         Optional<DataCenterConfig> optDc = _dcService.findById(id.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
         if (!optDc.isPresent()) {
@@ -284,7 +284,10 @@ public class TestController extends ApiBase {
         }
         DataCenterConfig dc = optDc.get();
         try {
-            _fitbitService.processAll(dc, LocalDateTime.now());
+            LocalDateTime dtStart = LocalDateTime.parse(StringUtils.fixDateTimeStr(dtStartStr));
+            LocalDateTime dtEnd = LocalDateTime.parse(StringUtils.fixDateTimeStr(dtEndStr));
+
+            _fitbitService.processAll(dc, dtStart, dtEnd);
             String msg = String.format("Successfully processed API data for %s", dc.getFkUserGuid());
             _logger.info(msg);
             result.put("result", msg);
@@ -345,7 +348,6 @@ public class TestController extends ApiBase {
             HtmlPage page = client.getPage(authUrl);
             results.put(Instant.now().toEpochMilli() + ": " + "Loaded Auth URL", "success - " + authUrl);
 
-            HtmlDivision div = page.getFirstByXPath("//div[@class='internal']");
             HtmlInput inputEmail = page.getFirstByXPath("//input[@tabindex='23']");
             HtmlInput inputPwd = page.getFirstByXPath("//input[@tabindex='24']");
 
@@ -415,12 +417,14 @@ public class TestController extends ApiBase {
                 results.put(Instant.now().toEpochMilli() + ": " + "Created new DataCenterConfig", "success - " + dc.getFkUserGuid());
             }
 
-            LocalDateTime dtStart = lastChecked.minusMinutes(5);
-
             long startTs = Instant.now().toEpochMilli();
 
             results.put(Instant.now().toEpochMilli() + ": " + "Starting FitBit API requests...", "success");
-            _fitbitService.processAll(dc, dtStart);
+
+            LocalDateTime dtEnd = LocalDateTime.now();
+            LocalDateTime dtStart = dtEnd.minusDays(_config.getFitbitQueryWindow());
+            _fitbitService.processAll(dc, dtStart, dtEnd);
+
             long endTs = Instant.now().toEpochMilli();
             results.put(Instant.now().toEpochMilli() + ": " + "Finished FitBit API requests", String.format("success, elapsed time: %s milliseconds", (endTs - startTs)) );
         }

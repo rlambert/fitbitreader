@@ -1,5 +1,7 @@
 package com.proclub.datareader.dao;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.proclub.datareader.model.security.OAuthCredentials;
 import com.proclub.datareader.utils.StringUtils;
 import lombok.Data;
@@ -104,25 +106,30 @@ public class DataCenterConfig {
     private int status;
 
     @Column(name="StatusText")
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private String statusText;
 
     @Column(name="DataStatus")
     private int dataStatus;
 
     @Column(name="Credentials")
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private String credentials;
 
     @Column(name="Modified")
     private LocalDateTime modified;
 
     @Transient
+    @JsonIgnore
     private OAuthCredentials oAuthCredentials;
+
 
     /**
      * getter will create an OAuthCredentials instance from
      * the database column data (JSON) when called.
      * @return OAuthCredentials
     */
+    @JsonIgnore
     public OAuthCredentials getOAuthCredentials() {
         if (oAuthCredentials == null) {
             if (StringUtils.isNullOrEmpty(credentials)) {

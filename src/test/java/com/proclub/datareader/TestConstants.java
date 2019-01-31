@@ -54,6 +54,43 @@ public class TestConstants {
     public static final int SOURCE_OTHER = 0;
 
     public static String TEST_CREDS = "{\"AccessToken\":\"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyNUsyTUoiLCJhdWQiOiIyMjhRV0QiLCJpc3MiOiJGaXRiaXQiLCJ0eXAiOiJhY2Nlc3NfdG9rZW4iLCJzY29wZXMiOiJyd2VpIHJhY3QgcnNsZSIsImV4cCI6MTUxNTIyNzA3NSwiaWF0IjoxNTE1MTk4Mjc1fQ.Srde6nOYdecd2SeQCVoppK7cDE6d36d4WjI8zjPI_GQ\",\"AccessSecret\":\"OAuth2.0 not required\",\"AccessUserId\":\"25K2MJ\",\"RefreshToken\":\"e9400fba91a13f0f202593285c231f939fd8c6d418ab45c0e2601a431408566c\",\"ExpiresAt\":\"1/6/2018 12:23:35 AM\"}";
+    public static String TEST_DC = "{\n" +
+            "        \"fkUserGuid\": \"EDD73E35-AAC6-4490-A4C1-6CFB30718B14\",\n" +
+            "        \"sourceSystem\": 8,\n" +
+            "        \"lastChecked\": -{\n" +
+            "            \"year\": 2019,\n" +
+            "            \"month\": \"JANUARY\",\n" +
+            "            \"dayOfMonth\": 28,\n" +
+            "            \"dayOfWeek\": \"MONDAY\",\n" +
+            "            \"dayOfYear\": 28,\n" +
+            "            \"monthValue\": 1,\n" +
+            "            \"hour\": 16,\n" +
+            "            \"minute\": 10,\n" +
+            "            \"second\": 34,\n" +
+            "            \"nano\": 0,\n" +
+            "            \"chronology\": +{...}\n" +
+            "        },\n" +
+            "        \"panelDisplay\": 0,\n" +
+            "        \"status\": 1,\n" +
+            "        \"statusText\": \"OK\",\n" +
+            "        \"dataStatus\": 0,\n" +
+            "        \"credentials\": \"{\\\"AccessToken\\\":\\\"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyNUsyTUoiLCJhdWQiOiIyMjhRV0QiLCJpc3MiOiJGaXRiaXQiLCJ0eXAiOiJhY2Nlc3NfdG9rZW4iLCJzY29wZXMiOiJyd2VpIHJhY3QgcnNsZSIsImV4cCI6MTUxNTIyNzA3NSwiaWF0IjoxNTE1MTk4Mjc1fQ.Srde6nOYdecd2SeQCVoppK7cDE6d36d4WjI8zjPI_GQ\\\",\\\"AccessSecret\\\":\\\"OAuth2.0 not required\\\",\\\"AccessUserId\\\":\\\"25K2MJ\\\",\\\"RefreshToken\\\":\\\"e9400fba91a13f0f202593285c231f939fd8c6d418ab45c0e2601a431408566c\\\",\\\"ExpiresAt\\\":\\\"1/6/2018 12:23:35 AM\\\"}\",\n" +
+            "        \"modified\": -{\n" +
+            "            \"year\": 2019,\n" +
+            "            \"month\": \"JANUARY\",\n" +
+            "            \"dayOfMonth\": 28,\n" +
+            "            \"dayOfWeek\": \"MONDAY\",\n" +
+            "            \"dayOfYear\": 28,\n" +
+            "            \"monthValue\": 1,\n" +
+            "            \"hour\": 16,\n" +
+            "            \"minute\": 10,\n" +
+            "            \"second\": 34,\n" +
+            "            \"nano\": 0,\n" +
+            "            \"chronology\": -{\n" +
+            "                \"id\": \"ISO\",\n" +
+            "                \"calendarType\": \"iso8601\"\n" +
+            "            }\n" +
+            "        }";
 
     public static final int TEST_FAIRLYACTIVE1 = 10;
     public static final int TEST_LIGHTLYACTIVE1 = 11;

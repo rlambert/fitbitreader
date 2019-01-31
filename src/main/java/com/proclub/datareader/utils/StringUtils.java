@@ -25,6 +25,18 @@ public class StringUtils {
 
     //---------------------------------- methods
 
+    /**
+     * Adds time to a date-only string
+     * @param dtStr - String
+     * @return String
+     */
+    public static String fixDateTimeStr(String dtStr) {
+        if (!dtStr.contains(":")) {
+            dtStr += "T00:00:00.000";
+        }
+        return dtStr;
+    }
+
     // helper methods to read a resource
     private static String streamToString(InputStream is) {
         java.util.Scanner s = new java.util.Scanner(is, "UTF-8").useDelimiter("\\A");

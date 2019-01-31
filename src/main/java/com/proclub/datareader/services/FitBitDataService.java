@@ -174,7 +174,7 @@ public class FitBitDataService {
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    private OAuthCredentials refreshToken(String refreshToken) throws IOException, ExecutionException, InterruptedException {
+    private OAuthCredentials refreshToken(String refreshToken) throws RuntimeException, IOException, ExecutionException, InterruptedException {
         OAuth2AccessToken token = _oauthService.refreshAccessToken(refreshToken);
         // the original token already had to have been a FitBit token or we
         // wouldn't be here
@@ -189,7 +189,7 @@ public class FitBitDataService {
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    private OAuthCredentials refreshToken(OAuthCredentials oldCreds) throws IOException, ExecutionException, InterruptedException {
+    private OAuthCredentials refreshToken(OAuthCredentials oldCreds) throws RuntimeException, IOException, ExecutionException, InterruptedException {
         return refreshToken(oldCreds.getRefreshToken());
     }
 
@@ -198,10 +198,9 @@ public class FitBitDataService {
      * @param dataClass - FitBitData implementation
      * @param apiUrl - FitBit API URL
      * @param oauth - OAuth credentials
-     * @param dt - LocalDateTime
      * @return FitBitApiData
      */
-    private FitBitApiData makeApiRequest(Class dataClass, String apiUrl, OAuthCredentials oauth, LocalDateTime dt)
+    private FitBitApiData makeApiRequest(Class dataClass, String apiUrl, OAuthCredentials oauth)
             throws IOException, ExecutionException, InterruptedException {
 
         Request req = new Request.Builder()
@@ -216,7 +215,7 @@ public class FitBitDataService {
                 if (response.code() == HttpStatus.UNAUTHORIZED.value()) {
                     // reauthorize (will throw an exception if it fails)
                     oauth = refreshToken(oauth);
-                    return makeApiRequest(dataClass, apiUrl, oauth, dt);
+                    return makeApiRequest(dataClass, apiUrl, oauth);
                 }
             }
             else {
@@ -253,21 +252,22 @@ public class FitBitDataService {
     /**
      * getActivityLevels returns ActivityLevel data for a single day from the
      * FitBit API
-     * @param dt - Instant
+     * @param dtStart - LocalDateTime
+     * @param dtEnd - LocalDateTime
      * @return - SleepData
      * @throws IOException on API error
      */
-    public List<ActivityLevelData> getActivityLevels(DataCenterConfig dc, LocalDateTime dt)
+    public List<ActivityLevelData> getActivityLevels(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
                     throws IOException, ExecutionException, InterruptedException {
-        LocalDateTime dtMidnight = LocalDateTime.of(dt.getYear(), dt.getMonth(), dt.getDayOfMonth(), 0, 0, 0, 0);
+        //LocalDateTime dtMidnight = LocalDateTime.of(dt.getYear(), dt.getMonth(), dt.getDayOfMonth(), 0, 0, 0, 0);
 
         // go back in time a configurable number of days
-        LocalDateTime dtStart = dtMidnight.minusDays(_config.getFitbitActivityLevelWindowDays());
+        // LocalDateTime dtStart = dtMidnight.minusDays(_config.getFitbitActivityLevelWindowDays());
         String baseUrl = _config.getFitbitActivityUrl();
 
         // now iterate through each day in window
         LocalDateTime dtloop = dtStart;
-        LocalDateTime dtEnd = dt.plusDays(1).truncatedTo(ChronoUnit.DAYS);
+        dtEnd = dtEnd.truncatedTo(ChronoUnit.DAYS);
 
         // these are in TrackDateOrder
         List<ActivityLevel> dbActivityLevels = _activityLevelService.findByUserAndTrackDateWindow(dc.getFkUserGuid(), dtStart, dtEnd);
@@ -281,10 +281,10 @@ public class FitBitDataService {
         while (dtloop.isBefore(dtEnd)) {
             url = baseUrl.replace("${date}", dtloop.format(fmt));
             // ask FitBit API for this day
-            ActivityLevelData data = (ActivityLevelData) makeApiRequest(ActivityLevelData.class, url, dc.getOAuthCredentials(), dtloop);
+            ActivityLevelData data = (ActivityLevelData) makeApiRequest(ActivityLevelData.class, url, dc.getOAuthCredentials());
             if (data != null) {
                 // convert to our DTO
-                ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid().toString(), dtloop, data);
+                ActivityLevel activityLevel = new ActivityLevel(dc.getFkUserGuid(), dtloop, data);
                 Optional<ActivityLevel> optMatch = findActivityLevelMatch(activityLevel, dbActivityLevels);
                 if (optMatch.isPresent()) {
                     ActivityLevel dbLevel = optMatch.get();
@@ -292,7 +292,7 @@ public class FitBitDataService {
                 }
 
                 // this is an insert (if no match already in DB) or update
-                activityLevel = _activityLevelService.saveActivityLevel(activityLevel);
+                _activityLevelService.saveActivityLevel(activityLevel);
                 apiResults.add(data);
                 _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s - %s", dtloop.toString(), dc.getFkUserGuid())));
                 dtloop = dtloop.plusDays(1);
@@ -308,18 +308,18 @@ public class FitBitDataService {
     /**
      * helper method to centralize URL creation for sleep,
      * steps, and weight.
-     * @param baseUrl - LocalDateTime
-     * @param dt - LocalDateTime
-     * @param windowDays - int
+     * @param baseUrl - String
+     * @param dtStart - LocalDateTime
+     * @param dtEnd - LocalDateTime
      * @return DynaUrl
      */
-    private DynaUrl prepUrl(String baseUrl, LocalDateTime dt, int windowDays) {
-        LocalDateTime dtStart = dt.minusDays(windowDays);
-        LocalDateTime dtEnd   = dt.plusDays(1);
+    private DynaUrl prepUrl(String baseUrl, LocalDateTime dtStart, LocalDateTime dtEnd) {
+        //LocalDateTime dtStart = dt.minusDays(windowDays);
+        dtEnd   = dtEnd.plusDays(1);
 
         // get all API data for our date-range
         String dtStartStr = dtStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        String dtEndStr = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));         // original date is end of range
+        String dtEndStr = dtEnd.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));         // original date is end of range
 
         // https://api.fitbit.com/1.2/user/-/xxxx/date/${startDate}/${endDate}.json
         String resultUrl = baseUrl.replace("${startDate}", dtStartStr).replace("${endDate}", dtEndStr);
@@ -349,15 +349,17 @@ public class FitBitDataService {
     /**
      * getWeight returns weight data for a single day from the
      * FitBit API
-     * @param dt - Instant
+     * @param dc - DataCenterConfig
+     * @param dtStart - LocalDateTime
+     * @param dtEnd - LocalDateTime
      * @return - SleepData
      * @throws InterruptedException - not normal
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    public WeightData getWeight(DataCenterConfig dc, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
-        DynaUrl urlInfo = prepUrl(_config.getFitbitWeightUrl(), dt, _config.getFitbitWeightWindowDays());
-        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, urlInfo.getUrl(), dc.getOAuthCredentials(), dt);
+    public WeightData getWeight(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd) throws IOException, ExecutionException, InterruptedException {
+        DynaUrl urlInfo = prepUrl(_config.getFitbitWeightUrl(), dtStart, dtEnd);
+        WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, urlInfo.getUrl(), dc.getOAuthCredentials());
 
         List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.WEIGHT);
 
@@ -398,16 +400,36 @@ public class FitBitDataService {
     }
 
     /**
+     * self-contained method to return Sleep data
+     * @param fkUserId - String
+     * @param suppressReauth - boolean
+     * @return SleepData
+     * @throws IOException on API error
+     */
+    public SleepData getSleep(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
+        DataCenterConfig dc = getDataCenterConfig(fkUserId);
+        LocalDateTime dtEnd = LocalDateTime.now();
+        LocalDateTime dtStart = dtEnd.minusDays(_config.getFitbitQueryWindow());
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, suppressReauth);
+        if (optCreds.isPresent()) {
+            return getSleep(dc, dtStart, dtEnd);
+        }
+        throw new IOException("No OAuthCredentials available for " + fkUserId);
+    }
+
+    /**
      * getSleep returns sleep data for a single day from the
      * FitBit API
-     * @param dt - Instant
+     * @param dtStart - LocalDateTime
+     * @param dtEnd - LocalDateTime
      * @return - SleepData
      * @throws IOException on API error
      */
-    public SleepData getSleep(DataCenterConfig dc, LocalDateTime dt) throws IOException, ExecutionException, InterruptedException {
+    public SleepData getSleep(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
+                        throws IOException, ExecutionException, InterruptedException {
 
-        DynaUrl urlInfo = prepUrl(_config.getFitbitSleepUrl(), dt, _config.getFitbitSleepWindowDays());
-        SleepData sleepData = (SleepData) makeApiRequest(SleepData.class, urlInfo.getUrl(), dc.getOAuthCredentials(), dt);
+        DynaUrl urlInfo = prepUrl(_config.getFitbitSleepUrl(), dtStart, dtEnd);
+        SleepData sleepData = (SleepData) makeApiRequest(SleepData.class, urlInfo.getUrl(), dc.getOAuthCredentials());
 
         // get all database rows that overlap; go back in time a configurable number of days
         List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.SLEEP);
@@ -449,16 +471,17 @@ public class FitBitDataService {
         return Optional.empty();
     }
 
+
     /**
      * helper method to refresh credentials
      * @param dc - DataCenterConfig
-     * @param dtNow - LocalDateTime
      * @param suppressNotifications - boolean
      * @return OAuthCredentials
      */
-    private Optional<OAuthCredentials> checkRefresh(DataCenterConfig dc, LocalDateTime dtNow, boolean suppressNotifications) {
+    private Optional<OAuthCredentials> checkRefresh(DataCenterConfig dc, boolean suppressNotifications) {
         OAuthCredentials creds;
         creds = dc.getOAuthCredentials();
+        LocalDateTime dtNow = LocalDateTime.now();
 
         if (creds == null) {
             // can't create them... fatal error for this user
@@ -484,10 +507,10 @@ public class FitBitDataService {
                 }
                 else {
                     updateDataCenterConfigError(dc, dtNow);
-                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, String.format("Unsuccessful token refresh, credentials expired."));
+                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, "Unsuccessful token refresh, credentials expired.");
                 }
             }
-            catch(IOException | ExecutionException | InterruptedException ex) {
+            catch(IOException | ExecutionException | InterruptedException | RuntimeException ex) {
                 String msg = String.format("Could not refresh OAuth2 token for user '%s'", dc.getFkUserGuid());
                 _logger.error(msg, ex);
                 // send notification email if enabled
@@ -526,32 +549,18 @@ public class FitBitDataService {
     public StepsData getSteps(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
 
         DataCenterConfig dc = getDataCenterConfig(fkUserId);
-        LocalDateTime dtNow = LocalDateTime.now();
+        LocalDateTime dtEnd = LocalDateTime.now();
+        LocalDateTime dtStart = dtEnd.minusDays(_config.getFitbitQueryWindow());
         OAuthCredentials creds = dc.getOAuthCredentials();
-        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, suppressReauth);
         if (optCreds.isPresent()) {
-            return getSteps(dc, dtNow);
+            return getSteps(dc, dtStart, dtEnd);
         }
         throw new IOException("No OAuthCredentials available for " + fkUserId);
     }
 
 
-    /**
-     * self-contained method to return Sleep data
-     * @param fkUserId - String
-     * @param suppressReauth - boolean
-     * @return SleepData
-     * @throws IOException on API error
-     */
-    public SleepData getSleep(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
-        DataCenterConfig dc = getDataCenterConfig(fkUserId);
-        LocalDateTime dtNow = LocalDateTime.now();
-        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
-        if (optCreds.isPresent()) {
-            return getSleep(dc, dtNow);
-        }
-        throw new IOException("No OAuthCredentials available for " + fkUserId);
-    }
+
 
     /**
      * self-contained method to return Weight data
@@ -562,10 +571,11 @@ public class FitBitDataService {
      */
     public WeightData getWeight(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
         DataCenterConfig dc = getDataCenterConfig(fkUserId);
-        LocalDateTime dtNow = LocalDateTime.now();
-        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
+        LocalDateTime dtEnd = LocalDateTime.now();
+        LocalDateTime dtStart = dtEnd.minusDays(_config.getFitbitQueryWindow());
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, suppressReauth);
         if (optCreds.isPresent()) {
-            return getWeight(dc, dtNow);
+            return getWeight(dc, dtStart, dtEnd);
         }
         throw new IOException("No OAuthCredentials available for " + fkUserId);
     }
@@ -579,10 +589,11 @@ public class FitBitDataService {
      */
     public List<ActivityLevelData> getActivityLevel(String fkUserId, boolean suppressReauth) throws IOException, ExecutionException, InterruptedException {
         DataCenterConfig dc = getDataCenterConfig(fkUserId);
-        LocalDateTime dtNow = LocalDateTime.now();
-        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressReauth);
+        LocalDateTime dtEnd = LocalDateTime.now();
+        LocalDateTime dtStart = dtEnd.minusDays(_config.getFitbitQueryWindow());
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, suppressReauth);
         if (optCreds.isPresent()) {
-            return getActivityLevels(dc, dtNow);
+            return getActivityLevels(dc, dtStart, dtEnd);
         }
         throw new IOException("No OAuthCredentials available for " + fkUserId);
     }
@@ -591,15 +602,16 @@ public class FitBitDataService {
     /**
      * getSteps returns FitBet steps data for a single day
      * @param dc - DataCenterConfig
-     * @param dt - LocalDateTime
+     * @param dtStart - LocalDateTime
+     * @param dtEnd - LocalDateTime
      * @return - StepsData
      * @throws IOException on API error
      */
-    public StepsData getSteps(DataCenterConfig dc, LocalDateTime dt)
+    public StepsData getSteps(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
              throws IOException, ExecutionException, InterruptedException {
 
-        DynaUrl urlInfo = prepUrl(_config.getFitbitStepsUrl(), dt, _config.getFitbitStepsWindowDays());
-        StepsData apiResults = (StepsData) makeApiRequest(StepsData.class, urlInfo.getUrl(), dc.getOAuthCredentials(), dt);
+        DynaUrl urlInfo = prepUrl(_config.getFitbitStepsUrl(), dtStart, dtEnd);
+        StepsData apiResults = (StepsData) makeApiRequest(StepsData.class, urlInfo.getUrl(), dc.getOAuthCredentials());
 
         List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.STEPS);
 
@@ -713,7 +725,7 @@ public class FitBitDataService {
                         auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg);
                     }
                 } else {
-                    String msg = String.format("User '%s' not found in User table.", dc.getFkUserGuid());
+                    String msg = String.format("Notify(): User '%s' not found in User table.", dc.getFkUserGuid());
                     _logger.error(msg);
                     auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg);
                 }
@@ -762,21 +774,23 @@ public class FitBitDataService {
     /**
      * gets all available FitBit data for a single user
      * @param userId - UUID
+     * @param suppressNotifications - boolean
      * @throws IOException on internal API calls
      */
-    public void processUser(UUID userId, boolean suppressNotifications) throws IOException {
+    public void processUser(UUID userId, LocalDateTime dtStart, LocalDateTime dtEnd, boolean suppressNotifications) throws IOException {
         Optional<DataCenterConfig> optDc = _dcService.findById(userId.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
         if (optDc.isPresent()) {
             DataCenterConfig dc = optDc.get();
-            processAll(dc, LocalDateTime.now(), suppressNotifications);
+            processAll(dc, dtStart, dtEnd, suppressNotifications);
         }
         else {
             throw new IllegalArgumentException(String.format("User %s not found in DataCenterConfig table", userId));
         }
     }
 
-    public void processAll(DataCenterConfig dc, LocalDateTime dtNow) throws IOException {
-        processAll(dc, dtNow, false);
+
+    public void processAll(DataCenterConfig dc, LocalDateTime dtNow, LocalDateTime dtEnd) throws IOException {
+        processAll(dc, dtNow, dtEnd,false);
     }
 
     /**
@@ -785,12 +799,11 @@ public class FitBitDataService {
      * @param dc - DataCenterConfig entry for use
      * @throws IOException on internal API call errors
      */
-    public void processAll(DataCenterConfig dc, LocalDateTime dtNow, boolean suppressNotifications) throws IOException {
+    public void processAll(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd, boolean suppressNotifications) throws IOException {
 
         // check if they're valid, and if not, see if we can refresh
-        Optional<OAuthCredentials> optCreds = checkRefresh(dc, dtNow, suppressNotifications);
+        Optional<OAuthCredentials> optCreds = checkRefresh(dc, suppressNotifications);
         if (!optCreds.isPresent()) {
-            // shouldn't ever happen, but just in case
             throw new IOException(String.format("UserId: %s, could not generate valid OAuthCredentials.", dc.getFkUserGuid()));
         }
         OAuthCredentials creds = optCreds.get();
@@ -802,9 +815,9 @@ public class FitBitDataService {
         if (!creds.isExpired()) {
             // we've valid got credentials, so let's fetch us some ActivityLevel data
             try {
-                getActivityLevels(dc, dtNow);
+                getActivityLevels(dc, dtStart, dtEnd);
                 _logger.info(StringUtils.formatMessage(String.format("ActivityLevelData saved for %s", dc.getFkUserGuid())));
-                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.ActivityLevelRead, String.format("Successfully updated ActivityLevels"));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.ActivityLevelRead, "Successfully updated ActivityLevels");
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving ActivityLevelData for user '%s'", dc.getFkUserGuid()), ex));
@@ -813,9 +826,9 @@ public class FitBitDataService {
 
             // now fetch and save Sleep data
             try {
-                getSleep(dc, dtNow);
+                getSleep(dc, dtStart, dtEnd);
                 _logger.info(StringUtils.formatMessage(String.format("SleepData saved for %s", dc.getFkUserGuid())));
-                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.SleepRead, String.format("Successfully updated Sleep data"));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.SleepRead, "Successfully updated Sleep data");
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Sleep data for user '%s'", dc.getFkUserGuid()), ex));
@@ -824,9 +837,9 @@ public class FitBitDataService {
 
             // fetch and save Steps data
             try {
-                getSteps(dc, dtNow);
+                getSteps(dc, dtStart, dtEnd);
                 _logger.info(StringUtils.formatMessage(String.format("StepsData saved for %s", dc.getFkUserGuid())));
-                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.StepsRead, String.format("Successfully updated Steps data"));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.StepsRead, "Successfully updated Steps data");
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Steps data for user '%s'", dc.getFkUserGuid()), ex));
@@ -836,9 +849,9 @@ public class FitBitDataService {
 
             // fetch and save Weight data
             try {
-                getWeight(dc, dtNow);
+                getWeight(dc, dtStart, dtEnd);
                 _logger.info(StringUtils.formatMessage(String.format("WeightData saved for %s", dc.getFkUserGuid())));
-                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.WeightRead, String.format("Successfully updated Weight data"));
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.WeightRead, "Successfully updated Weight data");
             }
             catch(InterruptedException | ExecutionException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error saving Weight data for user '%s'", dc.getFkUserGuid()), ex));

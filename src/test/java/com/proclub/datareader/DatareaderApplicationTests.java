@@ -158,25 +158,13 @@ public class DatareaderApplicationTests {
                 dc = _dcService.createDataCenterConfig(dc);
             }
 
-            LocalDateTime dtStart = lastChecked.minusMinutes(5);
-
             long startTs = Instant.now().toEpochMilli();
-            _fbService.processAll(dc, dtStart);
+
+            LocalDateTime dtEnd = LocalDateTime.now();
+            LocalDateTime dtStart = dtEnd.minusDays(_config.getFitbitQueryWindow());
+            _fbService.processAll(dc, dtStart, dtEnd);
             long endTs = Instant.now().toEpochMilli();
             System.out.println(String.format("Total time for process all: %s", endTs - startTs));
-
-
-//            StepsData stepsData = _fbService.getSteps(dc, dtStart);
-//            System.out.println(stepsData);
-
-//            SleepData sleepData = _fbService.getSleep(dc, dtStart);
-//            System.out.println(sleepData);
-//
-//            WeightData weightData = _fbService.getWeight(dc, dtStart);
-//            System.out.println(weightData);
-
-//            List<ActivityLevelData> activityLevelList = _fbService.getActivityLevels(dc, dtStart);
-//            System.out.println(activityLevelList);
 
         }
         catch(Exception ex){

@@ -88,8 +88,8 @@ public class AuditLogController extends ApiBase {
     public String getLog(HttpServletRequest req) throws IOException {
         checkHost(req);
         Map<String, String> messages = new HashMap<>();
-        messages.put("get log by user and start date", "/{userId}/{dtStart}");
-        messages.put("get log by start date", "/{dtStart} --> like 2019-01-31");
+        messages.put("Usage: get events by user and start date", "/{userId}/{dtStart}");
+        messages.put("Usage: get events by start date", "/{dtStart} --> like 2019-01-31");
         return this.generateJsonView(req, this.serialize(messages));
     }
 

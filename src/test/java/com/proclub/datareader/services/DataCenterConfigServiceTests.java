@@ -30,12 +30,46 @@ public class DataCenterConfigServiceTests {
     @Autowired
     private DataCenterConfigService _service;
 
+    ObjectMapper _mapper = new ObjectMapper();
+
     @Test
     public void testCredentials() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        OAuthCredentials oauth = mapper.readValue(TEST_CREDS, OAuthCredentials.class);
+        OAuthCredentials oauth = _mapper.readValue(TEST_CREDS, OAuthCredentials.class);
         assertNotNull(oauth);
         assertEquals("e9400fba91a13f0f202593285c231f939fd8c6d418ab45c0e2601a431408566c", oauth.getRefreshToken());
+    }
+
+    @Test
+    public void testJson() throws Exception {
+        LocalDateTime lastChecked = LocalDateTime.now();
+        LocalDateTime modified = LocalDateTime.now();
+        DataCenterConfig dc1 = new DataCenterConfig(TEST_USER_GUID1.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem, lastChecked,
+                0, Active.status, "OK", 0, TEST_CREDS, modified);
+
+        String json = _mapper.writeValueAsString(dc1);
+        assertNotNull(json);
+
+//        DataCenterConfig dc2 = _mapper.readValue(json, DataCenterConfig.class);
+//        assertNotNull(dc2);
+//        assertEquals(dc1, dc2);
+
+        dc1.setCredentials("");
+        dc1.setOAuthCredentials(null);
+
+        json = _mapper.writeValueAsString(dc1);
+        assertNotNull(json);
+
+//        dc2 = _mapper.readValue(json, DataCenterConfig.class);
+//        assertNotNull(dc2);
+//        assertEquals(dc1, dc2);
+
+        dc1.setCredentials(null);
+        json = _mapper.writeValueAsString(dc1);
+        assertNotNull(json);
+
+//        dc2 = _mapper.readValue(json, DataCenterConfig.class);
+//        assertNotNull(dc2);
+//        assertEquals(dc1, dc2);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.proclub.datareader.dao;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import javax.persistence.*;
@@ -40,9 +41,11 @@ public class AuditLog {
     }
 
     @Column(name = "Activity")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String activity;
 
     @Column(name = "Details")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String details;
 
     public AuditLog() {}

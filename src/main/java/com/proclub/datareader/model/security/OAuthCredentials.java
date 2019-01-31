@@ -59,7 +59,8 @@ public class OAuthCredentials {
         this.accessToken    = token.getAccessToken();
         this.accessSecret   = "OAuth2.0 not required";
         this.refreshToken   = token.getRefreshToken();
-        LocalDateTime dt    = LocalDateTime.now().plus(token.getExpiresIn(), ChronoUnit.MILLIS);
+        LocalDateTime dt    = LocalDateTime.now().plus(token.getExpiresIn(), ChronoUnit.SECONDS);
+        this.expirationDt   = dt;
         // 1/16/2019 4:17:40 PM
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(this.fitbitExpiresAtFormat);
         this.expiresAt      = dt.format(formatter);
