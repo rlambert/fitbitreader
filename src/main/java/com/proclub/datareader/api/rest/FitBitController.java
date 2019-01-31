@@ -93,9 +93,9 @@ public class FitBitController extends ApiBase {
         return genMessage("Processing Result", details);
     }
 
-    @GetMapping(value = {"/process/batch/{batch}/{dtStartStr}/{dtEndStr}/{notify}"}, produces = "text/html")
+    @GetMapping(value = {"/process/batch/{batch}/{dtStartStr}/{dtEndStr}/{suppressNotifications}"}, produces = "text/html")
     public String getBatch(@PathVariable String batch, @PathVariable String dtStartStr,
-                           @PathVariable String dtEndStr, @PathVariable boolean notify, HttpServletRequest req)
+                           @PathVariable String dtEndStr, @PathVariable boolean suppressNotifications, HttpServletRequest req)
             throws IOException {
 
         Map<String, String> result = new HashMap<>();
@@ -105,7 +105,7 @@ public class FitBitController extends ApiBase {
             try {
                 LocalDateTime dtEnd = LocalDateTime.parse(StringUtils.fixDateTimeStr(dtEndStr));
                 LocalDateTime dtStart = LocalDateTime.parse(StringUtils.fixDateTimeStr(dtStartStr));
-                _fitbitService.processUser(UUID.fromString(userId), dtStart, dtEnd, true);
+                _fitbitService.processUser(UUID.fromString(userId), dtStart, dtEnd, suppressNotifications);
                 result.put("result", String.format("%s successfully processed", userId));
             }
             catch (IOException ex) {

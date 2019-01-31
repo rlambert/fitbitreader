@@ -663,11 +663,18 @@ public class FitBitDataService {
      * @return boolean, true if we're in time to send
      */
     private boolean isInAuthWindow(DataCenterConfig dc) {
-        LocalDateTime dt = dc.getOAuthCredentials().getExpirationDt();
-        LocalDateTime dtLater = dt.plusDays(_config.getFitbitReauthWindowDays());
-        // if the expiration time plus the reauth window is AFTER
+        LocalDateTime dtChecked = dc.getLastChecked();
+        if (dtChecked == null) {
+            dtChecked = dc.getOAuthCredentials().getExpirationDt();
+        }
+        LocalDateTime dtLater = dtChecked.plusDays(_config.getFitbitReauthWindowDays());
+        // if the expiration datetime plus the reauth window is AFTER
         // right now, then we DO want to ask them to reauth
-        return LocalDateTime.now().isAfter(dtLater);
+
+        // steps taken apart because this was confusing
+        LocalDateTime dtNow = LocalDateTime.now();
+        boolean inWindow = dtLater.isAfter(dtNow);
+        return inWindow;
     }
 
     /**
