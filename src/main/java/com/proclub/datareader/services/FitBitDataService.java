@@ -730,8 +730,9 @@ public class FitBitDataService {
 
                         // notify user with email (emailService logs send errors)
                         try {
-                            _emailService.sendTemplatedEmail(user.getEmail(), fname);
-                            String msg = StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", user.getEmail(), dc.getFkUserGuid()));
+                            _emailService.sendTemplatedEmail(email, fname);
+
+                            String msg = StringUtils.formatMessage(String.format("Sent auth email to '%s'for user '%s'", email, dc.getFkUserGuid()));
                             _logger.info(StringUtils.formatMessage(msg));
                             auditEvent(dc.getFkUserGuid(), AuditLog.Activity.ReauthEmail, msg);
                         }

@@ -12,7 +12,11 @@ public class User {
 
     @Id
     @Column(name = "UserGuid")
-    private String userGuid = UUID.randomUUID().toString();
+    private String userGuid = UUID.randomUUID().toString().toUpperCase();
+
+    public void setUserGuid(String guid) {
+        this.userGuid = guid.toUpperCase();
+    }
 
     @Column(name = "ModifiedDateTime")
     private int modifiedDateTime;

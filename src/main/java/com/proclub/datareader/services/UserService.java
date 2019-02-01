@@ -4,6 +4,7 @@ import com.proclub.datareader.dao.User;
 import com.proclub.datareader.dao.UserRowMapper;
 import com.proclub.datareader.repositories.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -42,8 +43,8 @@ public class UserService {
 
 
     public Optional<User> findById(String id) {
-        return _repo.findById(id);
-        /*
+        //return _repo.findById(id);
+
         try {
             String guid = id.toString().toUpperCase();
             User user = (User) _jdbcTemplate.queryForObject(String.format("select * from Users where UserGuid = '%s'", guid), _mapper);
@@ -56,7 +57,6 @@ public class UserService {
         catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
-        */
     }
 
     public long count() {

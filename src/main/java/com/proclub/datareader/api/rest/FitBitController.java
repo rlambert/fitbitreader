@@ -9,7 +9,6 @@
 
 package com.proclub.datareader.api.rest;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proclub.datareader.api.ApiBase;
 import com.proclub.datareader.config.AppConfig;
@@ -29,7 +28,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,8 +62,8 @@ public class FitBitController extends ApiBase {
         _auditService = auditService;
     }
 
-    @GetMapping(value = {"/process/{notify}"}, produces = "text/html")
-    public String processAll(@PathVariable boolean notify, HttpServletRequest req) throws JsonProcessingException {
+    @GetMapping(value = {"/process/{suppressNotifications}"}, produces = "text/html")
+    public String processAll(@PathVariable boolean suppressNotifications, HttpServletRequest req) throws IOException {
         LocalDateTime dtEnd = LocalDateTime.now();
         LocalDateTime dtMidnight = LocalDateTime.of(dtEnd.getYear(), dtEnd.getMonth(), dtEnd.getDayOfMonth(), 0, 0, 0, 0);
         // go back in time a configurable number of days
@@ -76,7 +74,7 @@ public class FitBitController extends ApiBase {
         LocalDateTime dtProcessStart = LocalDateTime.now();
         for(DataCenterConfig dc : subs) {
             try {
-                _fitbitService.processAll(dc, dtStart, dtEnd, notify);
+                _fitbitService.processAll(dc, dtStart, dtEnd, suppressNotifications);
             }
             catch (IOException ex) {
                 _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
@@ -85,12 +83,12 @@ public class FitBitController extends ApiBase {
         LocalDateTime dtProcessEnd = LocalDateTime.now();
         Duration duration = Duration.between(dtProcessStart, dtProcessEnd);
 
-        String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), duration.get(ChronoUnit.MINUTES));
+        String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), (duration.getSeconds()/60));
         AuditLog log = new AuditLog("00000000-0000-0000-0000-000000000000", LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
         _auditService.createOrUpdate(log);
 
         _logger.info(String.format("Poll complete: %s total users processed.", subs.size()));
-        return genMessage("Processing Result", details);
+        return this.generateJsonView(req, genMessage("Processing Result", details));
     }
 
     @GetMapping(value = {"/process/batch/{batch}/{dtStartStr}/{dtEndStr}/{suppressNotifications}"}, produces = "text/html")
@@ -106,19 +104,12 @@ public class FitBitController extends ApiBase {
                 LocalDateTime dtEnd = LocalDateTime.parse(StringUtils.fixDateTimeStr(dtEndStr));
                 LocalDateTime dtStart = LocalDateTime.parse(StringUtils.fixDateTimeStr(dtStartStr));
                 _fitbitService.processUser(UUID.fromString(userId), dtStart, dtEnd, suppressNotifications);
-                result.put("result", String.format("%s successfully processed", userId));
-            }
-            catch (IOException ex) {
-                String msg = String.format("Error processing user %s, error: %s", userId, ex.getMessage());
-                result.put("result", msg);
-            }
-            catch (IllegalArgumentException ex) {
-                String msg = String.format("User %s does not exist in DataCenterConfig table.", userId);
-                result.put("result", msg);
+                result.put("result", String.format("%s processed, see AuditLog for details.", userId));
             }
             catch(Exception ex) {
                 String msg = String.format("Error processing user %s, error: %s", userId, ex.getMessage());
                 result.put("result", msg);
+                _logger.error(StringUtils.formatError(msg, ex));
             }
         }
         return this.generateJsonView(req, this.serialize(result));

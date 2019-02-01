@@ -129,7 +129,7 @@ public class SimpleTrack {
     }
 
     @Column(name = "fkProviderId")
-    private int fkProviderId = NullValue.Int;
+    private int fkProviderId;
 
     @Column(name = "SourceSystem")
     private int sourceSystem; // = SourceSystem.NULL.sourceSystem;
