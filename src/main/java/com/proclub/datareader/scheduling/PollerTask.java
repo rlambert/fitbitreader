@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
@@ -53,8 +52,8 @@ public class PollerTask {
     public void dataSourcePoller() {
         if ((!_config.isUnittest()) && (_config.isPollEnabled())) {
             LocalDateTime dtEnd = LocalDateTime.now();
-            _logger.info("*** Poller Task Started ****");
-            _logger.info(dtEnd.toString());
+            _logger.info("**** Poller Task Started ****");
+            _logger.info("   Start time: " + dtEnd.toString());
             _logger.info("");
 
             LocalDateTime dtMidnight = LocalDateTime.of(dtEnd.getYear(), dtEnd.getMonth(), dtEnd.getDayOfMonth(), 0, 0, 0, 0);
@@ -76,7 +75,7 @@ public class PollerTask {
             LocalDateTime dtProcessEnd = LocalDateTime.now();
             Duration duration = Duration.between(dtProcessStart, dtProcessEnd);
 
-            String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), duration.get(ChronoUnit.MINUTES));
+            String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), (duration.getSeconds()/60));
             AuditLog log = new AuditLog("00000000-0000-0000-0000-000000000000", LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
             _auditService.createOrUpdate(log);
 

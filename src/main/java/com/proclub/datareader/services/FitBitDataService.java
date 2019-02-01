@@ -174,7 +174,7 @@ public class FitBitDataService {
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    private OAuthCredentials refreshToken(String refreshToken) throws RuntimeException, IOException, ExecutionException, InterruptedException {
+    public OAuthCredentials refreshToken(String refreshToken) throws RuntimeException, IOException, ExecutionException, InterruptedException {
         OAuth2AccessToken token = _oauthService.refreshAccessToken(refreshToken);
         // the original token already had to have been a FitBit token or we
         // wouldn't be here
@@ -496,11 +496,15 @@ public class FitBitDataService {
             // need to refresh
             try {
                 updateDataCenterConfigDuringRefresh(dc, dtNow);
+
                 // if we can refresh token...
                 creds = refreshToken(creds);
-                if (creds.getExpirationDt().isAfter(dtNow)) {
+                dc.setCredentials(creds.toJson());
+                dc.setOAuthCredentials(creds);
+
+                // still expired? Unlikely, but we handle it just in case
+                if (!creds.isExpired()) {
                     // ...then we need to update the database as well
-                    dc.setCredentials(creds.toJson());
                     updateDataCenterConfigSuccess(dc, dtNow);
                     auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshedCredentials,
                             String.format("Refreshed OAuth2 credentials successfully for FitBit user '%s'", creds.getAccessUserId()));
@@ -508,6 +512,10 @@ public class FitBitDataService {
                 else {
                     updateDataCenterConfigError(dc, dtNow);
                     auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, "Unsuccessful token refresh, credentials expired.");
+                    // send notification email if enabled
+                    if (!suppressNotifications) {
+                        notifyUser(dc);
+                    }
                 }
             }
             catch(IOException | ExecutionException | InterruptedException | RuntimeException ex) {
@@ -690,20 +698,35 @@ public class FitBitDataService {
             if (isInAuthWindow(dc)) {
 
                 // yes, so see if we can find the user's email
-
                 _logger.info(StringUtils.formatMessage(String.format("Attempting auth email for user '%s'", dc.getFkUserGuid())));
-                Optional<User> opt = _userService.findById(dc.getFkUserGuid());
-                if (opt.isPresent()) {
-                    User user = opt.get();
-                    if (!StringUtils.isNullOrEmpty(user.getEmail())) {
-                        String fname = "";
-                        List<Client> clientList = _clientService.findByEmail(user.getEmail());
-                        if (clientList.size() == 0) {
-                            _logger.error("No Client row with matching User.email of '%s'", user.getEmail());
-                        } else {
-                            Client client = clientList.get(0);
-                            fname = client.getFname();
+
+                Optional<User> optUser = _userService.findById(dc.getFkUserGuid());
+                if (optUser.isPresent()) {
+
+                    User user = optUser.get();
+                    String email = user.getEmail();
+                    String fname = "20/20 Lifestyles User";
+
+                    // try to get better data from related Client row
+                    if (!StringUtils.isNullOrEmpty(user.getFkClientId())) {
+                        try {
+                            int clientId = Integer.valueOf(user.getFkClientId());
+                            Optional<Client> optClient = _clientService.findById(clientId);
+                            if (optClient.isPresent()) {
+                                Client client = optClient.get();
+                                fname = client.getFname();
+                                // override with email in Client if we have it
+                                email = client.getEmail();
+                            }
                         }
+                        catch (NumberFormatException ex) {
+                            String msg = String.format("Illegal non-integer value in User.fkClientId: %s, for user %s", user.getFkClientId(), dc.getFkUserGuid());
+                            _logger.error(StringUtils.formatError(msg, ex));
+                        }
+                    }
+
+                    // must have an email address to continue
+                    if (!StringUtils.isNullOrEmpty(email)) {
 
                         // notify user with email (emailService logs send errors)
                         try {
@@ -722,16 +745,15 @@ public class FitBitDataService {
                             _logger.error(StringUtils.formatError(msg, ex));
                             auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg + " " + ex.getMessage());
                         }
-
-
                     }
                     else {
                         // however unlikely, we should at least log not having an email addy
-                        String msg = String.format("No email address in User table for userId: %s", dc.getFkUserGuid());
+                        String msg = String.format("No email address available for userId: %s", dc.getFkUserGuid());
                         _logger.error(msg);
                         auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg);
                     }
-                } else {
+                }
+                else {
                     String msg = String.format("Notify(): User '%s' not found in User table.", dc.getFkUserGuid());
                     _logger.error(msg);
                     auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, msg);
@@ -749,6 +771,7 @@ public class FitBitDataService {
         dc.setStatus(DataCenterConfig.PartnerStatus.RefreshErr.status);
         DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
         dc.setStatusText(String.format("Refresh Error for day: %s", dt.format(DateTimeFormatter.ISO_LOCAL_DATE)));
+        dc.setLastChecked(dt);
         _dcService.updateDataCenterConfig(dc);
     }
 
@@ -761,6 +784,7 @@ public class FitBitDataService {
         dc.setStatus(DataCenterConfig.PartnerStatus.AuthErr.status);
         DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
         dc.setStatusText("Refresh in progress");
+        dc.setLastChecked(dt);
         _dcService.updateDataCenterConfig(dc);
     }
 
@@ -811,7 +835,8 @@ public class FitBitDataService {
         // check if they're valid, and if not, see if we can refresh
         Optional<OAuthCredentials> optCreds = checkRefresh(dc, suppressNotifications);
         if (!optCreds.isPresent()) {
-            throw new IOException(String.format("UserId: %s, could not generate valid OAuthCredentials.", dc.getFkUserGuid()));
+            // all error handling an notifications occurred upstream
+            return;
         }
         OAuthCredentials creds = optCreds.get();
 

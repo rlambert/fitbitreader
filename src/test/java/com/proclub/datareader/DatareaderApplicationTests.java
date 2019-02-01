@@ -19,12 +19,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static com.proclub.datareader.TestConstants.*;
 import static com.proclub.datareader.dao.DataCenterConfig.PartnerStatus.Active;
@@ -33,7 +36,8 @@ import static org.junit.Assert.assertNotNull;
 @RunWith(SpringRunner.class)
 @ActiveProfiles("unittest")
 @SpringBootTest
-public class DatareaderApplicationTests {
+@WebAppConfiguration
+public class DatareaderApplicationTests extends AbstractWebTest {
 
     @Autowired
     AppConfig _config;
@@ -43,6 +47,7 @@ public class DatareaderApplicationTests {
     private DataCenterConfigService _dcService;
     @Autowired
     private UserService _userService;
+
 
 
     @Test
@@ -55,6 +60,34 @@ public class DatareaderApplicationTests {
     public void testCronConfig() {
         String cronExpr = _config.getPollCron();
         assertNotNull(cronExpr);
+    }
+
+    //@Test
+    public void testRoss() throws InterruptedException, ExecutionException, IOException {
+        String cstr = "{\n" +
+                "  \"AccessToken\": \"eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIyMjhRV0QiLCJzdWIiOiI3NjI3Q1oiLCJpc3MiOiJGaXRiaXQiLCJ0eXAiOiJhY2Nlc3NfdG9rZW4iLCJzY29wZXMiOiJyd2VpIHJhY3QgcnNsZSIsImV4cCI6MTU0ODkyNzIxMSwiaWF0IjoxNTQ4ODk4NDExfQ.KQqjeWxcaU3hMhgRIQR9h5M_00_fWWFLqHHMMpQH0J0\",\n" +
+                "  \"AccessSecret\": \"OAuth2.0 not required\",\n" +
+                "  \"AccessUserId\": \"7627CZ\",\n" +
+                "  \"RefreshToken\": \"3476fc9fc10620bf17f18d3158755aa70f4a3d5095cff445e7bc390b23b44084\",\n" +
+                "  \"ExpiresAt\": \"1/31/2019 1:32:40 AM\"\n" +
+                "}";
+
+        /*
+        # FitBit Configurations
+            app.fitbitClientId=228QWD
+            app.fitbitClientSecret=65aaa7ebce0f4988b6642e6f370d7dbd
+            app.fitbitScope=activity weight sleep
+            app.fitbitCallbackUrl=http://data.2020lifestyles.com/datacenterasync/authfitbitcallback
+         */
+        final OAuth20Service service = new ServiceBuilder("228QWD")
+                .apiSecret("65aaa7ebce0f4988b6642e6f370d7dbd")
+                .scope(_config.getFitbitScope())
+                //your callback URL to store and handle the authorization code sent by Fitbit
+                .callback("http://data.2020lifestyles.com/datacenterasync/authfitbitcallback")
+                .build(FitbitApi20.instance());
+
+        OAuthCredentials creds = _fbService.refreshToken("3476fc9fc10620bf17f18d3158755aa70f4a3d5095cff445e7bc390b23b44084");
+        assertNotNull(creds);
     }
 
     @Test
@@ -142,6 +175,8 @@ public class DatareaderApplicationTests {
             LocalDateTime modified = LocalDateTime.now();
             String json = creds.toJson();
 
+            // get a new set of tokens just to prove we can
+            creds = _fbService.refreshToken(creds.getRefreshToken());
 
             DataCenterConfig dc;
             Optional<DataCenterConfig> optDc = _dcService.findById(user.getUserGuid(), SimpleTrack.SourceSystem.FITBIT.sourceSystem);
@@ -162,7 +197,12 @@ public class DatareaderApplicationTests {
 
             LocalDateTime dtEnd = LocalDateTime.now();
             LocalDateTime dtStart = dtEnd.minusDays(_config.getFitbitQueryWindow());
+
+            dc.getOAuthCredentials().setExpirationDt(LocalDateTime.now().minusHours(4));
+            dc.getOAuthCredentials().setRefreshToken("YO!");
+
             _fbService.processAll(dc, dtStart, dtEnd);
+
             long endTs = Instant.now().toEpochMilli();
             System.out.println(String.format("Total time for process all: %s", endTs - startTs));
 

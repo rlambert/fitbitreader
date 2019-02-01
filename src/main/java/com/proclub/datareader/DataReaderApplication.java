@@ -5,10 +5,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @Configuration
-//@EnableAdminServer
+@EnableScheduling
 public class DataReaderApplication {
 
     private static Logger _logger = LoggerFactory.getLogger(DataReaderApplication.class);
