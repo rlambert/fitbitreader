@@ -59,6 +59,7 @@ public class TestController extends ApiBase {
     private ClientService _clientService;               // gets Client table data
     private EmailService _emailService;                 // centralized email code
     private FitBitDataService _fitbitService;           // fitbit API service
+    private AuditLogService _auditService;
 
     private JdbcTemplate _jdbcTemplate;
 
@@ -66,7 +67,7 @@ public class TestController extends ApiBase {
     public TestController(AppConfig config, UserService userService, DataCenterConfigService dcService,
                           ActivityLevelService activityLevelService, SimpleTrackService trackService,
                           ClientService clientService, EmailService emailService, FitBitDataService fitBitDataService,
-                          JdbcTemplate jdbcTemplate) {
+                          AuditLogService auditLogService, JdbcTemplate jdbcTemplate) {
         _config = config;
         _userService = userService;
         _dcService = dcService;
@@ -75,6 +76,7 @@ public class TestController extends ApiBase {
         _clientService = clientService;
         _emailService = emailService;
         _fitbitService = fitBitDataService;
+         _auditService = auditLogService;
         _jdbcTemplate = jdbcTemplate;
     }
 
@@ -109,6 +111,39 @@ public class TestController extends ApiBase {
         if ((!req.getRequestURL().toString().contains("localhost")) && (!req.getRequestURL().toString().contains("127.0.0.1"))) {
             throw HttpClientErrorException.create(HttpStatus.FORBIDDEN, "Resource not available.", null, null, null);
         }
+    }
+
+    @GetMapping(value = {"timezone"}, produces = "text/html")
+    public String showTz(HttpServletRequest req) throws IOException {
+        TimeZone tz = FitBitDataService._timeZone;
+        return this.generateJsonView(req, genMessage("Server Timezone", tz.getDisplayName()));
+     }
+
+    @GetMapping(value = {"test/auth"}, produces = "text/html")
+    public String testAuth(HttpServletRequest req) throws IOException {
+
+        List<DataCenterConfig> subs = _dcService.findAllFitbitActive();
+        List<String> results = new ArrayList<>();
+
+        for(DataCenterConfig dc : subs) {
+            try {
+                if (!_fitbitService.preFlightOAuth(dc)) {
+                    results.add(dc.getFkUserGuid());
+                }
+            }
+            catch (Exception ex) {
+                _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
+            }
+        }
+
+        String details = String.format("Auth pre-flight check for %s total users. Total who would receive emails: %s", subs.size(), results.size());
+        AuditLog log = new AuditLog(AuditLogService.systemUserGuid, LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
+        _auditService.createOrUpdate(log);
+        _logger.info(details);
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put("Summary", details);
+        resultMap.put("UserList", results);
+        return this.generateJsonView(req, this.serialize(resultMap));
     }
 
     @GetMapping(value = {"test/error"}, produces = "text/html")

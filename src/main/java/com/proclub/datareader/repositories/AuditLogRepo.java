@@ -25,4 +25,6 @@ public interface AuditLogRepo extends JpaRepository<AuditLog, Long> {
     List<AuditLog> findByActivityAndDateTimeAfter(String activity, LocalDateTime dtStart);
     List<AuditLog> findByActivityAndDateTimeBetween(String activity, LocalDateTime dtStart, LocalDateTime dtEnd);
     List<AuditLog> findByFkUserGuidAndActivityAndDateTimeBetween(String uid, String activity, LocalDateTime dtStart, LocalDateTime dtEnd);
+    List<AuditLog> findByFkUserGuidAndDateTimeBetween(String uid, LocalDateTime dtStart, LocalDateTime dtEnd);
+
 }

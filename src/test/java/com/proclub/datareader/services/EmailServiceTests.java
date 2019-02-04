@@ -13,7 +13,7 @@ import java.io.IOException;
 @RunWith(SpringRunner.class)
 @ActiveProfiles("unittest")
 @SpringBootTest
-public class EmailServiceTest {
+public class EmailServiceTests {
 
     @Autowired
     EmailService _emailService;

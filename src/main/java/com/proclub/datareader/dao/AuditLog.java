@@ -23,7 +23,9 @@ public class AuditLog {
         StepsRead,
         Error,
         ReauthEmail,
-        RunSummary
+        RunSummary,
+        RunNotice,
+        AuthPreflight
     }
 
     @Id

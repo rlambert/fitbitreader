@@ -59,14 +59,6 @@ public class AuditLogController extends ApiBase {
         }
     }
 
-//    @GetMapping(value = {"/{animal}"}, produces = "text/html")
-//    public String getLog3(@PathVariable String animal, HttpServletRequest req) throws IOException {
-//        checkHost(req);
-//        Map<String, String> messages = new HashMap<>();
-//        messages.put("animal", animal);
-//        return this.generateJsonView(req, this.serialize(messages));
-//    }
-
     @GetMapping(value = {"/events/{dtStr}"}, produces = "text/html")
     public String getLog2(@PathVariable String dtStr, HttpServletRequest req) throws IOException {
         checkHost(req);
@@ -93,10 +85,12 @@ public class AuditLogController extends ApiBase {
         return this.generateJsonView(req, this.serialize(messages));
     }
 
-    @GetMapping(value = {"/events/{userId}/{dtStart}"}, produces = "text/html")
-    public String getLog(@PathVariable String userId, @PathVariable LocalDateTime dtStart, HttpServletRequest req) throws IOException {
+    @GetMapping(value = {"/events/{userId}/{dtStr}"}, produces = "text/html")
+    public String getLog(@PathVariable String userId, @PathVariable String dtStr, HttpServletRequest req) throws IOException {
         checkHost(req);
         try {
+            dtStr += "T00:00:00.000";
+            LocalDateTime dtStart = LocalDateTime.parse(dtStr);
             List<AuditLog> log = _logService.findByUserAndDateTime(userId, dtStart);
             return this.generateJsonView(req, this.serialize(log));
         }
@@ -108,6 +102,24 @@ public class AuditLogController extends ApiBase {
         }
     }
 
-
+    @GetMapping(value = {"/events/{userId}/{dtStartStr}/{dtEndStr}"}, produces = "text/html")
+    public String getLog2(@PathVariable String userId, @PathVariable String dtStartStr, @PathVariable String dtEndStr,
+                          HttpServletRequest req) throws IOException {
+        checkHost(req);
+        try {
+            dtStartStr += "T00:00:00.000";
+            dtEndStr += "T00:00:00.000";
+            LocalDateTime dtStart = LocalDateTime.parse(dtStartStr);
+            LocalDateTime dtEnd = LocalDateTime.parse(dtEndStr);
+            List<AuditLog> log = _logService.findByUserAndDateRange(userId, dtStart, dtEnd);
+            return this.generateJsonView(req, this.serialize(log));
+        }
+        catch (JsonProcessingException ex) {
+            return this.generateJsonView(req, this.serialize(String.format("{\"JSON generation error\":\"%s\"}", ex.getMessage())));
+        }
+        catch (IOException ex) {
+            return this.generateJsonView(req, this.serialize(String.format("{\"IOException\":\"%s\"}", ex.getMessage())));
+        }
+    }
 
 }

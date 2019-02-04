@@ -15,11 +15,14 @@ public class SleepJsonTests {
     @Test
     public void testSleepResults() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        String json = StringUtils.readResource(this, "sleepdata.json");
+        String json = StringUtils.readResource(this, "sleepdata2.json");
         SleepData sleepData = mapper.readValue(json, SleepData.class);
         assertNotNull(sleepData);
 
-        SimpleTrack st = new SimpleTrack(sleepData.getSleep().get(0), TEST_USER_GUID1.toString());
+        SimpleTrack st = null;
+        for(Sleep sleep : sleepData.getSleep()) {
+            st = new SimpleTrack(sleep, TEST_USER_GUID1.toString());
+        }
         assertNotNull(st);
     }
 }

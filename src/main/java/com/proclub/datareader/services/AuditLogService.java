@@ -12,6 +12,8 @@ import java.util.Optional;
 @Service
 public class AuditLogService {
 
+    public static String systemUserGuid = "00000000-0000-0000-0000-000000000000";
+
     private AuditLogRepo _repo;
 
     /**
@@ -27,6 +29,7 @@ public class AuditLogService {
     public List<AuditLog> findByUser(String uid) {
         return _repo.findByFkUserGuid(uid);
     }
+
     public List<AuditLog> findByUserAndDateTime(String uid, LocalDateTime dtStart) {
         return _repo.findByFkUserGuidAndDateTimeAfter(uid, dtStart);
     }
@@ -43,8 +46,13 @@ public class AuditLogService {
         return _repo.findByDateTimeAfter(dtStart);
     }
 
+
     public List<AuditLog> findByDateRange(LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findByDateTimeBetween(dtStart, dtEnd);
+    }
+
+    public List<AuditLog> findByUserAndDateRange(String userId, LocalDateTime dtStart, LocalDateTime dtEnd) {
+        return _repo.findByFkUserGuidAndDateTimeBetween(userId, dtStart, dtEnd);
     }
 
     public List<AuditLog> findByActivityAndDateTime(String activity, LocalDateTime dtStart) {
@@ -53,9 +61,7 @@ public class AuditLogService {
     public List<AuditLog> findByActivityAndDateRange(String activity, LocalDateTime dtStart, LocalDateTime dtEnd) {
         return _repo.findByActivityAndDateTimeBetween(activity, dtStart, dtEnd);
     }
-    public List<AuditLog> findByUserAndActivityAndDateRange(String uid, String activity, LocalDateTime dtStart, LocalDateTime dtEnd) {
-        return _repo.findByFkUserGuidAndActivityAndDateTimeBetween(uid, activity, dtStart, dtEnd);
-    }
+
 
     public Optional<AuditLog> findById(long id) {
         return _repo.findById(id);

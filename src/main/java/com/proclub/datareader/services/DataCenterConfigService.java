@@ -58,6 +58,10 @@ Modified datetime NOT NULL
         //return _repo.save(dc);
         /* fkUserGuid, SourceSystem, LastChecked, PanelDisplay, Status, StatusText, DataStatus, Credentials, Modified
          */
+//        int offset = FitBitDataService._timeZone.getRawOffset()/3600;  // convert to hours
+//        dc.setLastChecked(dc.getLastChecked().minusHours(offset));
+//        dc.setModified(dc.getModified().minusHours(offset));
+
         String sql = String.format(_insertSql, dc.getFkUserGuid(), dc.getSourceSystem(), dc.getLastChecked(),
                         dc.getPanelDisplay(), dc.getStatus(), dc.getStatusText(), dc.getDataStatus(), dc.getCredentials(), dc.getModified());
         _jdbc.update(sql);
@@ -67,7 +71,10 @@ Modified datetime NOT NULL
     public DataCenterConfig updateDataCenterConfig(DataCenterConfig dc) {
         // UPDATE dbo.DataCenterConfig SET LastChecked='%s', PanelDisplay=%s, Status=%s, " +
         //                    "StatusText='%s', DataStatus=%s, Credentials='%s', Modified='%s' WHERE fkUserGuid='%s' AND SourceSystem=%s
-        dc.setModified(LocalDateTime.now());
+        // int offset = FitBitDataService._timeZone.getRawOffset()/3600;  // convert to hours
+        // dc.setLastChecked(dc.getLastChecked().minusHours(offset));
+        // dc.setModified(dc.getModified().minusHours(offset));
+
         String sql = String.format(_updateSql, dc.getLastChecked(), dc.getPanelDisplay(), dc.getStatus(),
                                     dc.getStatusText(), dc.getDataStatus(), dc.getCredentials(), dc.getModified(), dc.getFkUserGuid(), dc.getSourceSystem());
         _jdbc.update(sql);

@@ -37,7 +37,7 @@ import static org.junit.Assert.assertNotNull;
 @ActiveProfiles("unittest")
 @SpringBootTest
 @WebAppConfiguration
-public class DatareaderApplicationTests extends AbstractWebTest {
+public class DatareaderApplicationTests {
 
     @Autowired
     AppConfig _config;

@@ -1,5 +1,6 @@
 package com.proclub.datareader.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proclub.datareader.dao.DataCenterConfig;
 import com.proclub.datareader.dao.SimpleTrack;
@@ -12,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +33,20 @@ public class DataCenterConfigServiceTests {
     private DataCenterConfigService _service;
 
     ObjectMapper _mapper = new ObjectMapper();
+
+    @Test
+    public void testDcDates() throws JsonProcessingException {
+        LocalDateTime dt = LocalDateTime.now();
+        LocalDateTime modified = LocalDateTime.now();
+        DataCenterConfig dc1 = new DataCenterConfig(TEST_USER_GUID1.toString(), SimpleTrack.SourceSystem.FITBIT.sourceSystem, dt,
+                0, Active.status, "OK", 0, TEST_CREDS, modified);
+        dc1.setStatus(DataCenterConfig.PartnerStatus.Active.status);
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM d, YYYY - hh:mm:ss a");
+        dc1.setStatusText(dt.format(fmt));
+        dc1.setLastChecked(dt);
+        String json = _mapper.writeValueAsString(dc1);
+        assertNotNull(json);
+    }
 
     @Test
     public void testCredentials() throws Exception {

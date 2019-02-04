@@ -65,7 +65,7 @@ public class FitBitDataService {
 
     //get current TimeZone using getTimeZone method of Calendar class
     // TODO: Update LocalDateTime instances with server's zone
-    private static TimeZone _timeZone = Calendar.getInstance().getTimeZone();
+    public static TimeZone _timeZone = Calendar.getInstance().getTimeZone();
 
     private AppConfig _config;                          // application config
     private UserService _userService;                   // our service to fetch user data
@@ -257,7 +257,7 @@ public class FitBitDataService {
      * @return - SleepData
      * @throws IOException on API error
      */
-    public List<ActivityLevelData> getActivityLevels(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
+    private List<ActivityLevelData> getActivityLevels(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
                     throws IOException, ExecutionException, InterruptedException {
         //LocalDateTime dtMidnight = LocalDateTime.of(dt.getYear(), dt.getMonth(), dt.getDayOfMonth(), 0, 0, 0, 0);
 
@@ -357,7 +357,7 @@ public class FitBitDataService {
      * @throws ExecutionException - also not likely
      * @throws IOException - if FitBit.com API is down
      */
-    public WeightData getWeight(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd) throws IOException, ExecutionException, InterruptedException {
+    private WeightData getWeight(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd) throws IOException, ExecutionException, InterruptedException {
         DynaUrl urlInfo = prepUrl(_config.getFitbitWeightUrl(), dtStart, dtEnd);
         WeightData apiResults = (WeightData) makeApiRequest(WeightData.class, urlInfo.getUrl(), dc.getOAuthCredentials());
 
@@ -425,7 +425,7 @@ public class FitBitDataService {
      * @return - SleepData
      * @throws IOException on API error
      */
-    public SleepData getSleep(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
+    private SleepData getSleep(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
                         throws IOException, ExecutionException, InterruptedException {
 
         DynaUrl urlInfo = prepUrl(_config.getFitbitSleepUrl(), dtStart, dtEnd);
@@ -471,6 +471,50 @@ public class FitBitDataService {
         return Optional.empty();
     }
 
+    /**
+     * utility method for external callers to determine who
+     * cannot reauth with the refresh token
+     * @param dc - DataCenterConfig
+     * @return boolean - true means successful reauth
+     */
+    public boolean preFlightOAuth(DataCenterConfig dc) {
+        OAuthCredentials creds;
+        creds = dc.getOAuthCredentials();
+        LocalDateTime dtNow = LocalDateTime.now();
+
+        if (creds == null) {
+            auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, "Unsuccessful token refresh, credentials missing.");
+            return false;
+        }
+        if (creds.isExpired()) {
+            // need to refresh
+            try {
+
+                // if we can refresh token...
+                creds = refreshToken(creds);
+                dc.setCredentials(creds.toJson());
+                dc.setOAuthCredentials(creds);
+
+                // still expired? Unlikely, but we handle it just in case
+                if (!creds.isExpired()) {
+                    // ...then we need to update the database as well
+                    updateDataCenterConfigSuccess(dc, dtNow);
+                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshedCredentials,
+                            String.format("Refreshed OAuth2 credentials successfully for FitBit user '%s'", creds.getAccessUserId()));
+                    return true;
+                }
+                else {
+                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, "Unsuccessful token refresh, credentials expired.");
+                    return false;
+                }
+            }
+            catch(IOException | ExecutionException | InterruptedException | RuntimeException ex) {
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, String.format("Unsuccessful token refresh: %s", ex.getMessage()));
+                return false;
+            }
+        }  // end if creds expired
+        return false;
+    }
 
     /**
      * helper method to refresh credentials
@@ -615,7 +659,7 @@ public class FitBitDataService {
      * @return - StepsData
      * @throws IOException on API error
      */
-    public StepsData getSteps(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
+    private StepsData getSteps(DataCenterConfig dc, LocalDateTime dtStart, LocalDateTime dtEnd)
              throws IOException, ExecutionException, InterruptedException {
 
         DynaUrl urlInfo = prepUrl(_config.getFitbitStepsUrl(), dtStart, dtEnd);
@@ -766,24 +810,20 @@ public class FitBitDataService {
     /**
      * helper method to update DataCenterConfig row
      * @param dc - DataCenterConfig
-     * @param dt - LocalDateTime
      */
     private void updateDataCenterConfigError(DataCenterConfig dc, LocalDateTime dt) {
         dc.setStatus(DataCenterConfig.PartnerStatus.RefreshErr.status);
-        DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
-        dc.setStatusText(String.format("Refresh Error for day: %s", dt.format(DateTimeFormatter.ISO_LOCAL_DATE)));
         dc.setLastChecked(dt);
+        dc.setStatusText(String.format("Refresh Error for day: %s", dt.format(DateTimeFormatter.ISO_LOCAL_DATE)));
         _dcService.updateDataCenterConfig(dc);
     }
 
     /**
      * mark a DataCenterConfig as a refresh in progress
      * @param dc - DataCenterconfig
-     * @param dt - LocalDateTime
      */
     private void updateDataCenterConfigDuringRefresh(DataCenterConfig dc, LocalDateTime dt) {
         dc.setStatus(DataCenterConfig.PartnerStatus.AuthErr.status);
-        DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
         dc.setStatusText("Refresh in progress");
         dc.setLastChecked(dt);
         _dcService.updateDataCenterConfig(dc);
@@ -793,15 +833,15 @@ public class FitBitDataService {
      * helper method to update the DataCenterConfig row after a successful
      * authorization with the FitBit API
      * @param dc - DataCenterConfig
-     * @param dt - LocalDateTime
      */
     private void updateDataCenterConfigSuccess(DataCenterConfig dc, LocalDateTime dt) {
         dc.setStatus(DataCenterConfig.PartnerStatus.Active.status);
+        dc.setLastChecked(dt);
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM d, YYYY - hh:mm:ss a");
         dc.setStatusText(dt.format(fmt));
-        dc.setLastChecked(dt);
         _dcService.updateDataCenterConfig(dc);
     }
+
 
     /**
      * gets all available FitBit data for a single user
@@ -890,6 +930,9 @@ public class FitBitDataService {
                 _logger.error(StringUtils.formatError(String.format("Error saving Weight data for user '%s'", dc.getFkUserGuid()), ex));
                 auditEvent(dc.getFkUserGuid(), AuditLog.Activity.Error, String.format("Error updating Weight data: %s", ex.getMessage()));
             }
+
+            updateDataCenterConfigSuccess(dc, LocalDateTime.now());
+
         } // end if not expired credentials
     }
 }

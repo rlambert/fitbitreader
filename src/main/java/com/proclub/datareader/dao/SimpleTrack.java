@@ -271,7 +271,12 @@ public class SimpleTrack {
         // ProClub keeps time in seconds since Epoch
         this.valTime = (int) sleep.getStartTimeEpochSeconds();
         this.valTime2 = (int) sleep.getEndTimeEpochSeconds();
-        this.valInt2 = (int) sleep.getLevels().getSummary().getWake().getCount();
+        if (sleep.getLevels().getSummary().getWake() != null) {
+            this.valInt2 = (int) sleep.getLevels().getSummary().getWake().getCount();
+        }
+        else if (sleep.getLevels().getSummary().getAwake() != null) {
+            this.valInt2 = (int) sleep.getLevels().getSummary().getAwake().getCount();
+        }
 
         String dtStr = sleep.getDateOfSleep();   // YYYY-MM-DD
         //         String dtStr = "2018-12-11T00:00:00.00Z";

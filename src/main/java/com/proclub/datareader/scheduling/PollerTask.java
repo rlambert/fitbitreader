@@ -50,36 +50,51 @@ public class PollerTask {
     // @Scheduled(cron = "[Seconds] [Minutes] [Hours] [Day of month] [Month] [Day of week] [Year]")
     @Scheduled(cron = "${app.pollcron}")
     public void dataSourcePoller() {
-        if ((!_config.isUnittest()) && (_config.isPollEnabled())) {
-            LocalDateTime dtEnd = LocalDateTime.now();
-            _logger.info("**** Poller Task Started ****");
-            _logger.info("   Start time: " + dtEnd.toString());
-            _logger.info("");
 
-            LocalDateTime dtMidnight = LocalDateTime.of(dtEnd.getYear(), dtEnd.getMonth(), dtEnd.getDayOfMonth(), 0, 0, 0, 0);
-            // go back in time a configurable number of days
-            LocalDateTime dtStart = dtMidnight.minusDays(_config.getFitbitQueryWindow());
+        LocalDateTime dtEnd = LocalDateTime.now();
 
-            List<DataCenterConfig> subs = _dcService.findAllFitbitActive();
+        /// we do not do any processing if it is unit test or if
+        // polling is turned off completely via configuration
 
-            LocalDateTime dtProcessStart = LocalDateTime.now();
-            for(DataCenterConfig dc : subs) {
-                try {
-                    _fitBitService.processAll(dc, dtStart, dtEnd);
+        if (!_config.isUnittest()) {
+            if ((_config.isPollEnabled())) {
+
+                _logger.info("**** Poller Task Started ****");
+                _logger.info("   Start time: " + dtEnd.toString());
+                _logger.info("");
+
+                LocalDateTime dtMidnight = LocalDateTime.of(dtEnd.getYear(), dtEnd.getMonth(), dtEnd.getDayOfMonth(), 0, 0, 0, 0);
+                // go back in time a configurable number of days
+                LocalDateTime dtStart = dtMidnight.minusDays(_config.getFitbitQueryWindow());
+
+                List<DataCenterConfig> subs = _dcService.findAllFitbitActive();
+
+                LocalDateTime dtProcessStart = LocalDateTime.now();
+                for (DataCenterConfig dc : subs) {
+                    try {
+                        _fitBitService.processAll(dc, dtStart, dtEnd);
+                    } catch (IOException ex) {
+                        _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
+                    }
+
                 }
-                catch (IOException ex) {
-                    _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
-                }
+                LocalDateTime dtProcessEnd = LocalDateTime.now();
+                Duration duration = Duration.between(dtProcessStart, dtProcessEnd);
 
+                String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), (duration.getSeconds() / 60));
+                AuditLog log = new AuditLog(AuditLogService.systemUserGuid, LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
+                _auditService.createOrUpdate(log);
+
+                _logger.info(String.format("Poll complete: %s total users processed.", subs.size()));
             }
-            LocalDateTime dtProcessEnd = LocalDateTime.now();
-            Duration duration = Duration.between(dtProcessStart, dtProcessEnd);
-
-            String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), (duration.getSeconds()/60));
-            AuditLog log = new AuditLog("00000000-0000-0000-0000-000000000000", LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
-            _auditService.createOrUpdate(log);
-
-            _logger.info(String.format("Poll complete: %s total users processed.", subs.size()));
+            else {
+                // polling is disabled, so we are going to just make a note
+                // and exit
+                String msg = String.format("Polling is disabled via configuration, no action taken at %s", dtEnd);
+                _logger.info(msg);
+                AuditLog log = new AuditLog(AuditLogService.systemUserGuid, LocalDateTime.now(), AuditLog.Activity.RunNotice, msg);
+                _auditService.createOrUpdate(log);
+            }
         }
     }
 
