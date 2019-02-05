@@ -123,12 +123,21 @@ public class TestController extends ApiBase {
     public String testAuth(HttpServletRequest req) throws IOException {
 
         List<DataCenterConfig> subs = _dcService.findAllFitbitActive();
+
+        _logger.debug(String.format("Preflight auth test start - FitBitActive Count: %s", subs.size()));
+
         List<String> results = new ArrayList<>();
 
         for(DataCenterConfig dc : subs) {
             try {
+                _logger.debug(String.format("Starting preflight for %s", dc.getFkUserGuid()));
+
                 if (!_fitbitService.preFlightOAuth(dc)) {
                     results.add(dc.getFkUserGuid());
+                    _logger.debug(String.format("User %s ADDED to preflight email list", dc.getFkUserGuid()));
+                }
+                else {
+                    _logger.debug(String.format("User %s NOT added to preflight email list", dc.getFkUserGuid()));
                 }
             }
             catch (Exception ex) {
@@ -169,7 +178,7 @@ public class TestController extends ApiBase {
         return this.generateJsonView(req, this.serialize(result));
     }
 
-    @GetMapping(value = {"test/db"}, produces = "text/html")
+    @GetMapping(value = {"test/db/fitbitactive"}, produces = "text/html")
     public String runDbTest(HttpServletRequest req) throws IOException {
         checkHost(req);
         try {

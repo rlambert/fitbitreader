@@ -28,7 +28,7 @@ Credentials varchar(700) NULL,
 Modified datetime NOT NULL
  */
     private static String _select1Sql = "SELECT fkUserGuid, SourceSystem, LastChecked, PanelDisplay, Status, " +
-                    "StatusText, DataStatus, Credentials, Modified FROM dbo.DataCenterConfig WHERE fkUserGuid = %s AND " +
+                    "StatusText, DataStatus, Credentials, Modified FROM dbo.DataCenterConfig WHERE fkUserGuid = '%s' AND " +
                     "SourceSystem = %s";
 
     private static String _insertSql = "INSERT INTO dbo.DataCenterConfig (fkUserGuid, SourceSystem, LastChecked, PanelDisplay, " +
@@ -38,10 +38,11 @@ Modified datetime NOT NULL
     private static String _updateSql = "UPDATE dbo.DataCenterConfig SET LastChecked='%s', PanelDisplay=%s, Status=%s, " +
                     "StatusText='%s', DataStatus=%s, Credentials='%s', Modified='%s' WHERE fkUserGuid='%s' AND SourceSystem=%s";
 
+    private static String _findActiveSql ="SELECT fkUserGuid, SourceSystem, LastChecked, PanelDisplay, Status, " +
+            "StatusText, DataStatus, Credentials, Modified FROM dbo.DataCenterConfig WHERE SourceSystem = %s AND Status = %s ORDER BY LastChecked desc";
 
     private DataCenterConfigRepo _repo;
     private JdbcTemplate _jdbc;
-    private DataCenterConfigRowMapper _mapper = new DataCenterConfigRowMapper();
 
     /**
      * ctor
@@ -87,7 +88,9 @@ Modified datetime NOT NULL
 
 
     public Optional<DataCenterConfig> findById(String id, int sourceSystem) {
-        List<DataCenterConfig> rows = _repo.findAllByFkUserGuidAndSourceSystem(id, sourceSystem);
+        //List<DataCenterConfig> rows = _repo.findAllByFkUserGuidAndSourceSystem(id, sourceSystem);
+        String sql = String.format(_select1Sql, id, sourceSystem);
+        List<DataCenterConfig> rows = _jdbc.query(sql, new DataCenterConfigRowMapper());
         if (rows.size() > 0) {
             return Optional.of(rows.get(0));
         }
@@ -125,8 +128,12 @@ Modified datetime NOT NULL
     public List<DataCenterConfig> findAllFitbitActive() {
         int status = DataCenterConfig.PartnerStatus.Active.status;
         int sourceSystem = SimpleTrack.SourceSystem.FITBIT.sourceSystem;
-        List<DataCenterConfig> rows = _repo.findAllByStatusAndSourceSystem(status, sourceSystem);
-        return rows;
+
+        //        List<DataCenterConfig> rows = _repo.findAllByStatusAndSourceSystem(status, sourceSystem);
+        //        return rows;
+
+        String sql = String.format(_findActiveSql, sourceSystem, status);
+        return _jdbc.query(sql, new DataCenterConfigRowMapper());
     }
 
 }

@@ -12,7 +12,7 @@
     </parent>
     <groupId>com.proclub</groupId>
     <artifactId>datareader</artifactId>
-    <version>1.0.0.6</version>
+    <version>1.0.0.7</version>
     <name>datareader</name>
     <description>Fitness API data reader</description>
 

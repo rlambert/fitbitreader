@@ -479,6 +479,7 @@ public class FitBitDataService {
      */
     public boolean preFlightOAuth(DataCenterConfig dc) {
         OAuthCredentials creds;
+
         creds = dc.getOAuthCredentials();
         LocalDateTime dtNow = LocalDateTime.now();
 
@@ -497,6 +498,8 @@ public class FitBitDataService {
 
                 // still expired? Unlikely, but we handle it just in case
                 if (!creds.isExpired()) {
+                    _logger.debug(String.format("Preflight success refreshing credentials for %s", dc.getFkUserGuid()));
+
                     // ...then we need to update the database as well
                     updateDataCenterConfigSuccess(dc, dtNow);
                     auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshedCredentials,
@@ -504,16 +507,24 @@ public class FitBitDataService {
                     return true;
                 }
                 else {
+                    _logger.debug(String.format("Preflight FAILURE refreshing credentials for %s", dc.getFkUserGuid()));
                     auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, "Unsuccessful token refresh, credentials expired.");
-                    return false;
+                    // we want to return false if the user would get an email, so if
+                    // isInAuthWindow returns true, we send false to the caller
+                    return !isInAuthWindow(dc);
                 }
             }
             catch(IOException | ExecutionException | InterruptedException | RuntimeException ex) {
+                _logger.debug(String.format("Preflight.Exception FAILURE refreshing credentials for %s", dc.getFkUserGuid()));
                 auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, String.format("Unsuccessful token refresh: %s", ex.getMessage()));
-                return false;
+                // we want to return false if the user would get an email, so if
+                // isInAuthWindow returns true, we send false to the caller
+                return !isInAuthWindow(dc);
             }
         }  // end if creds expired
-        return false;
+
+        // if creds have not expired, they are good to go
+        return true;
     }
 
     /**
@@ -715,17 +726,19 @@ public class FitBitDataService {
      * @return boolean, true if we're in time to send
      */
     private boolean isInAuthWindow(DataCenterConfig dc) {
+        LocalDateTime dtExpired = dc.getOAuthCredentials().getExpirationDateTime();
         LocalDateTime dtChecked = dc.getLastChecked();
-        if (dtChecked == null) {
-            dtChecked = dc.getOAuthCredentials().getExpirationDt();
+        if (dtExpired.isBefore(dtChecked)) {
+            dtChecked = dtExpired;
         }
-        LocalDateTime dtLater = dtChecked.plusDays(_config.getFitbitReauthWindowDays());
-        // if the expiration datetime plus the reauth window is AFTER
-        // right now, then we DO want to ask them to reauth
 
-        // steps taken apart because this was confusing
-        LocalDateTime dtNow = LocalDateTime.now();
-        boolean inWindow = dtLater.isAfter(dtNow);
+        // calculate earliest allowable date
+        LocalDateTime dtStart = LocalDateTime.now().minusDays(_config.getFitbitReauthWindowDays());
+        boolean inWindow = dtChecked.isAfter(dtStart);
+
+        _logger.debug(String.format("isInAuthWindow - user %s, lastChecked: %s, dtExpired: %s, dtChecked: %s, dtStart: %s, inWindow: %s",
+                                                    dc.getFkUserGuid(), dc.getLastChecked(), dtExpired, dtChecked, dtStart, inWindow));
+        // is the date after the beginning of our window?
         return inWindow;
     }
 

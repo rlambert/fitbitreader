@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 @Entity
-//@IdClass(DataCenterConfig.Pkey.class)
 @Table(name="DataCenterConfig", schema="dbo")
 @Data
 public class DataCenterConfig {
