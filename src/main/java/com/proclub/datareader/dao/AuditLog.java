@@ -25,7 +25,8 @@ public class AuditLog {
         ReauthEmail,
         RunSummary,
         RunNotice,
-        AuthPreflight
+        AuthPreflight,
+        CredentialsError
     }
 
     @Id

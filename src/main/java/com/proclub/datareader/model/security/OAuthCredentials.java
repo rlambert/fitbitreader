@@ -80,6 +80,8 @@ public class OAuthCredentials {
                 this.expirationDt = LocalDateTime.parse(this.expiresAt, fmt);
             }
             else {
+                // this avoid
+                this.expirationDt = LocalDateTime.now().minusYears(2);
                 _logger.error(String.format("expiresAt is null in OAuthCredentials for FitBit user: %s", this.accessUserId));
             }
         }

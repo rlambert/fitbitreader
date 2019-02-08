@@ -76,15 +76,19 @@ public class FitBitController extends ApiBase {
             try {
                 _fitbitService.processAll(dc, dtStart, dtEnd, suppressNotifications);
             }
-            catch (IOException ex) {
+            catch (Exception ex) {
                 _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
+                if (ex instanceof NullPointerException) {
+                    AuditLog log = new AuditLog(AuditLogService.systemUserGuid, LocalDateTime.now(), AuditLog.Activity.CredentialsError, ex.getMessage());
+                    _auditService.createOrUpdate(log);
+                }
             }
         }
         LocalDateTime dtProcessEnd = LocalDateTime.now();
         Duration duration = Duration.between(dtProcessStart, dtProcessEnd);
 
         String details = String.format("Polling complete for %s total users. Elapsed time: %s minutes", subs.size(), (duration.getSeconds()/60));
-        AuditLog log = new AuditLog("00000000-0000-0000-0000-000000000000", LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
+        AuditLog log = new AuditLog(AuditLogService.systemUserGuid, LocalDateTime.now(), AuditLog.Activity.RunSummary, details);
         _auditService.createOrUpdate(log);
 
         _logger.info(String.format("Poll complete: %s total users processed.", subs.size()));

@@ -9,6 +9,7 @@ public class Activity {
 
     private long activityId;
     private long activityParentId;
+    private String activityParentName;
     private long calories;
     private String description;
     private double distance;
@@ -17,7 +18,8 @@ public class Activity {
     private Boolean isFavorite;
     private long logId;
     private String name;
+    private String startDate;
     private String startTime;
     private long steps;
-
+    private String lastModified;
 }

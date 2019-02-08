@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -73,8 +72,13 @@ public class PollerTask {
                 for (DataCenterConfig dc : subs) {
                     try {
                         _fitBitService.processAll(dc, dtStart, dtEnd);
-                    } catch (IOException ex) {
+                    }
+                    catch (Exception ex) {
                         _logger.error(StringUtils.formatError(String.format("Error processing user: %s", dc.getFkUserGuid()), ex));
+                        if (ex instanceof NullPointerException) {
+                            AuditLog log = new AuditLog(AuditLogService.systemUserGuid, LocalDateTime.now(), AuditLog.Activity.CredentialsError, ex.getMessage());
+                            _auditService.createOrUpdate(log);
+                        }
                     }
 
                 }

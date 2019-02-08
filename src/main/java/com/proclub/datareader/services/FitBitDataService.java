@@ -828,6 +828,7 @@ public class FitBitDataService {
         dc.setStatus(DataCenterConfig.PartnerStatus.RefreshErr.status);
         dc.setLastChecked(dt);
         dc.setStatusText(String.format("Refresh Error for day: %s", dt.format(DateTimeFormatter.ISO_LOCAL_DATE)));
+        dc.setModified(dt);
         _dcService.updateDataCenterConfig(dc);
     }
 
@@ -839,6 +840,7 @@ public class FitBitDataService {
         dc.setStatus(DataCenterConfig.PartnerStatus.AuthErr.status);
         dc.setStatusText("Refresh in progress");
         dc.setLastChecked(dt);
+        dc.setModified(dt);
         _dcService.updateDataCenterConfig(dc);
     }
 
@@ -852,6 +854,7 @@ public class FitBitDataService {
         dc.setLastChecked(dt);
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM d, YYYY - hh:mm:ss a");
         dc.setStatusText(dt.format(fmt));
+        dc.setModified(dt);
         _dcService.updateDataCenterConfig(dc);
     }
 

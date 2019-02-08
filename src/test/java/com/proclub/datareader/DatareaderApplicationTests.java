@@ -57,6 +57,17 @@ public class DatareaderApplicationTests {
     }
 
     @Test
+    public void testRuntimeException() {
+        DataCenterConfig dc = null;
+        try {
+            dc.getOAuthCredentials();
+        }
+        catch(Exception ex) {
+            System.out.println("I caught this.");
+        }
+    }
+
+    @Test
     public void testCronConfig() {
         String cronExpr = _config.getPollCron();
         assertNotNull(cronExpr);
