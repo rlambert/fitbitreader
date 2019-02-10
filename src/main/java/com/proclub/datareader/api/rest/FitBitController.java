@@ -9,7 +9,6 @@
 
 package com.proclub.datareader.api.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proclub.datareader.api.ApiBase;
 import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.AuditLog;
@@ -46,8 +45,6 @@ public class FitBitController extends ApiBase {
     private AppConfig _config;
     private DataCenterConfigService _dcService;
     private AuditLogService _auditService;
-
-    private ObjectMapper _mapper = new ObjectMapper();
 
     /**
      * constructor - params populated by Spring

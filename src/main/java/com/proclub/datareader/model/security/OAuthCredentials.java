@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.scribejava.apis.fitbit.FitBitOAuth2AccessToken;
 import com.proclub.datareader.utils.StringUtils;
@@ -20,7 +21,9 @@ import java.time.temporal.ChronoUnit;
 @JsonIgnoreProperties
 public class OAuthCredentials {
 
-    private static ObjectMapper _mapper = new ObjectMapper();
+    private static ObjectMapper _mapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
     private static Logger _logger = LoggerFactory.getLogger(OAuthCredentials.class);
 
     @JsonProperty("AccessToken")

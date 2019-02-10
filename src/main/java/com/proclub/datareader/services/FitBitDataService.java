@@ -1,6 +1,7 @@
 package com.proclub.datareader.services;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.scribejava.apis.FitbitApi20;
 import com.github.scribejava.apis.fitbit.FitBitOAuth2AccessToken;
@@ -78,7 +79,8 @@ public class FitBitDataService {
     private final OAuth20Service _oauthService;         // this is a scribejava library instance
 
     private OkHttpClient _client = new OkHttpClient();  // for accessing web API
-    private ObjectMapper _mapper = new ObjectMapper();  // for deserializing JSON
+    private ObjectMapper _mapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);  // for deserializing JSON
 
 
     // ----------------------------- constructor

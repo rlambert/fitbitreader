@@ -1,6 +1,5 @@
 package com.proclub.datareader.scheduling;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proclub.datareader.config.AppConfig;
 import com.proclub.datareader.dao.AuditLog;
 import com.proclub.datareader.dao.DataCenterConfig;
@@ -28,7 +27,6 @@ public class PollerTask {
     private FitBitDataService _fitBitService;
     private AuditLogService _auditService;
 
-    private ObjectMapper _mapper = new ObjectMapper();
 
     /**
      * constructor - params populated by Spring
