@@ -393,8 +393,10 @@ public class FitBitDataService {
         LocalDateTime dt = LocalDateTime.parse(dtStr);
         ZoneOffset zos = ZoneOffset.ofHours(0);
 
+        LocalDateTime dtDb;
         for (SimpleTrack item : dbResults) {
-            if (item.getTrackDateTime() == dt.toEpochSecond(zos)) {
+            dtDb = LocalDateTime.ofEpochSecond(item.getTrackDateTime(), 0, zos);
+            if (dtDb.getDayOfYear() == dt.getDayOfYear()) {
                 return Optional.of(item);
             }
         }
@@ -465,10 +467,15 @@ public class FitBitDataService {
         LocalDateTime dt = LocalDateTime.parse(dtStr);
         ZoneOffset zos = ZoneOffset.ofHours(0);
 
+        LocalDateTime dtDb;
         for (SimpleTrack item : dbResults) {
-            if (item.getTrackDateTime() == dt.toEpochSecond(zos)) {
+            dtDb = LocalDateTime.ofEpochSecond(item.getTrackDateTime(), 0, zos);
+            if (dtDb.getDayOfYear() == dt.getDayOfYear()) {
                 return Optional.of(item);
             }
+//            if (item.getTrackDateTime() == dt.toEpochSecond(zos)) {
+//                return Optional.of(item);
+//            }
         }
         return Optional.empty();
     }
@@ -536,6 +543,17 @@ public class FitBitDataService {
      * @return OAuthCredentials
      */
     private Optional<OAuthCredentials> checkRefresh(DataCenterConfig dc, boolean suppressNotifications) {
+        return checkRefresh(dc, suppressNotifications, false);
+    }
+
+    /**
+     * helper method to refresh credentials
+     * @param dc - DataCenterConfig
+     * @param suppressNotifications - boolean
+     * @param isRetry - boolean, true if this is a retry attempt
+     * @return OAuthCredentials
+     */
+    private Optional<OAuthCredentials> checkRefresh(DataCenterConfig dc, boolean suppressNotifications, boolean isRetry) {
         OAuthCredentials creds;
         creds = dc.getOAuthCredentials();
         LocalDateTime dtNow = LocalDateTime.now();
@@ -549,33 +567,39 @@ public class FitBitDataService {
                     String.format("DataCentConfig has no credentials for '%s'", dc.getFkUserGuid()));
             return Optional.empty();
         }
-        if (creds.isExpired()) {
-            // need to refresh
-            try {
-                updateDataCenterConfigDuringRefresh(dc, dtNow);
 
-                // if we can refresh token...
-                creds = refreshToken(creds);
-                dc.setCredentials(creds.toJson());
-                dc.setOAuthCredentials(creds);
+        // we are now going to *always* refresh
+        // if (creds.isExpired()) {
 
-                // still expired? Unlikely, but we handle it just in case
-                if (!creds.isExpired()) {
-                    // ...then we need to update the database as well
-                    updateDataCenterConfigSuccess(dc, dtNow);
-                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshedCredentials,
-                            String.format("Refreshed OAuth2 credentials successfully for FitBit user '%s'", creds.getAccessUserId()));
-                }
-                else {
-                    updateDataCenterConfigError(dc, dtNow);
-                    auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, "Unsuccessful token refresh, credentials expired.");
-                    // send notification email if enabled
-                    if (!suppressNotifications) {
-                        notifyUser(dc);
-                    }
+        try {
+            updateDataCenterConfigDuringRefresh(dc, dtNow);
+
+            // if we can refresh token...
+            creds = refreshToken(creds);
+            dc.setCredentials(creds.toJson());
+            dc.setOAuthCredentials(creds);
+
+            // still expired? Unlikely, but we handle it in the else just in case
+            if (!creds.isExpired()) {
+                // ...then we need to update the database as well
+                updateDataCenterConfigSuccess(dc, dtNow);
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshedCredentials,
+                        String.format("Refreshed OAuth2 credentials successfully for FitBit user '%s'", creds.getAccessUserId()));
+            }
+            else {
+                updateDataCenterConfigError(dc, dtNow);
+                auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, "Unsuccessful token refresh, credentials expired.");
+                // send notification email if enabled
+                if (!suppressNotifications) {
+                    notifyUser(dc);
                 }
             }
-            catch(IOException | ExecutionException | InterruptedException | RuntimeException ex) {
+        }
+        catch(IOException | ExecutionException | InterruptedException | RuntimeException ex) {
+            if (!isRetry) {
+                return checkRefresh(dc, suppressNotifications, true);
+            }
+            else {
                 String msg = String.format("Could not refresh OAuth2 token for user '%s'", dc.getFkUserGuid());
                 _logger.error(msg, ex);
                 // send notification email if enabled
@@ -586,7 +610,7 @@ public class FitBitDataService {
                 auditEvent(dc.getFkUserGuid(), AuditLog.Activity.RefreshError, String.format("Unsuccessful token refresh: %s", ex.getMessage()));
                 return Optional.empty();
             }
-        }  // end if creds expired
+        }
         return Optional.of(creds);
     }
 
@@ -681,11 +705,12 @@ public class FitBitDataService {
         List<SimpleTrack> dbResults = _trackService.findByUserTrackDateRange(dc.getFkUserGuid(), urlInfo.getStartDate(), urlInfo.getEndDate(), SimpleTrack.Entity.STEPS);
 
         for(Steps steps : apiResults.getSteps()) {
+
             Optional<SimpleTrack> result = findStepsMatch(steps, dbResults);
             SimpleTrack newTracker = new SimpleTrack(steps, dc.getFkUserGuid());
             if (result.isPresent()) {
-                SimpleTrack dbWt = result.get();
-                newTracker.setSimpleTrackGuid(dbWt.getSimpleTrackGuid());
+                SimpleTrack dbSteps = result.get();
+                newTracker.setSimpleTrackGuid(dbSteps.getSimpleTrackGuid());
             }
             // this will update an existing record if there is an ID
             _trackService.createSimpleTrack(newTracker);
@@ -894,7 +919,7 @@ public class FitBitDataService {
         // check if they're valid, and if not, see if we can refresh
         Optional<OAuthCredentials> optCreds = checkRefresh(dc, suppressNotifications);
         if (!optCreds.isPresent()) {
-            // all error handling an notifications occurred upstream
+            // all error handling and notifications occurred upstream
             return;
         }
         OAuthCredentials creds = optCreds.get();

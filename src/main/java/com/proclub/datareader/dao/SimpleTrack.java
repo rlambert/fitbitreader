@@ -278,6 +278,8 @@ public class SimpleTrack {
             this.valInt2 = (int) sleep.getLevels().getSummary().getAwake().getCount();
         }
 
+        this.deviceReported = 1;
+
         String dtStr = sleep.getDateOfSleep();   // YYYY-MM-DD
         //         String dtStr = "2018-12-11T00:00:00.00Z";
         if (!dtStr.contains(":")) {
@@ -307,6 +309,8 @@ public class SimpleTrack {
         LocalDateTime dtTrack = LocalDateTime.parse(dtStr);
         this.trackDateTime = (int) dtTrack.toEpochSecond(ZoneOffset.ofHours(0));
         this.valInt = steps.getValue();
+        this.deviceReported = 1;
+        this.valTinyInt = 255;
     }
 
     /**
